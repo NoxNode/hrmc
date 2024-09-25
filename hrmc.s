@@ -389,7 +389,8 @@ hrmc_dest:
 
 TODO: update code to have more locals on the stack
 	make a way for other code to call into hrmc functions
-	needed for callbacks
+		needed for callbacks
+		maybe have it as a part of the stack frame setup op
 TODO: make compile into a callable function
 	ret instead of jmp hrmc_dest
 	load rsi and rdi from stack +0x08 and +0x10
