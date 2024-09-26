@@ -157,14 +157,6 @@ end_of_const_imm_patching:
 	mov [rdi-4], eax
 	jmp compile_loop
 end_of_branch_backwards_patching:
-# if c & 0xF0 is 0x50 then u32[dest-11] = sign_ext(d) << 3
-	cmp r10, 0x50
-	jne end_of_stack_offset_patching
-	movsx eax, dl
-	shl eax, 3
-	mov [rdi-11], eax
-	jmp compile_loop
-end_of_stack_offset_patching:
 # if c & 0xF0 is not 0x70 then continue compile_loop
 	cmp r10, 0x70
 	jne compile_loop
@@ -227,18 +219,6 @@ pop rax; mov rax, QWORD PTR [rax]; push rax ; .align 16, 0x90 # 19
 .byte '.', 0,   'D', 0,    'L', 0,   'L', 0,    0x00,0x00,0x00,0x00, 0x00,0x00,0x00,0x00 # 33 pop rax; mov rax, QWORD PTR [rax]; push rax
 .zero 16*12 # 33-3F
 .zero 16*16 # 40-4F
-.zero 16*16 # 90-9F
-.zero 16*1 # 60
-pop rcx;                          .align 16, 0x90 # 61
-pop rcx; pop rdx;                 .align 16, 0x90 # 62
-pop rcx; pop rdx; pop r8;         .align 16, 0x90 # 63
-pop rcx; pop rdx; pop r8; pop r9; sub rsp, 0x20; .align 16, 0x90 # 64 rsp-20 is for shadow space
-.zero 16*10 # 65-6E
-and rsp, -16; .align 16, 0x90 # 6F stack must be 16 byte aligned on function entry
-.zero 16*14 # 70-7D
-or al,al ; .align 16, 0x90 # 7E
-or rax,rax ; .align 16, 0x90 # 7F
-.zero 16*16 # 80-8F
 pop rax; mov BYTE PTR[rax],al ;   .align 16, 0x90 # 50
 pop rax; mov BYTE PTR[rax],al ;   .align 16, 0x90 # 51
 pop rax; mov WORD PTR[rax],ax ;   .align 16, 0x90 # 52
@@ -250,6 +230,18 @@ pop rax; mov QWORD PTR[rax],rax ; .align 16, 0x90 # 58
 pop rax; mov QWORD PTR[rax],rax ; .align 16, 0x90 # 59
 .zero 16*5 # 5A-5E
 push rbp; mov rbp, rsp ;          .align 16, 0x90 # 5F
+.zero 16*1 # 60
+pop rcx;                          .align 16, 0x90 # 61
+pop rcx; pop rdx;                 .align 16, 0x90 # 62
+pop rcx; pop rdx; pop r8;         .align 16, 0x90 # 63
+pop rcx; pop rdx; pop r8; pop r9; sub rsp, 0x20; .align 16, 0x90 # 64 rsp-20 is for shadow space
+.zero 16*10 # 65-6E
+and rsp, -16; .align 16, 0x90 # 6F stack must be 16 byte aligned on function entry
+.zero 16*14 # 70-7D
+or al,al ; .align 16, 0x90 # 7E
+or rax,rax ; .align 16, 0x90 # 7F
+.zero 16*16 # 80-8F
+.zero 16*16 # 90-9F
 pop rcx; pop rax; or rax, rcx; push rax ; .align 16, 0x90 # A0
 pop rax; not rax; push rax; ; .align 16, 0x90 # A1
 cqo; pop rcx; pop rax; div rax, rcx; push rax ; .align 16, 0x90 # A2
@@ -386,6 +378,11 @@ hrmc_dest:
 .zero (1024<<4)
 
 /*
+
+TODO: explore the 16 bit compressed riscv and arm
+	also check out spir-v bytecode
+	maybe document them as well as java bytecode and wasm
+	and compare all them with hrmc
 
 TODO: update code to have more locals on the stack
 	make a way for other code to call into hrmc functions
