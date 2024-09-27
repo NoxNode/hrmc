@@ -157,6 +157,14 @@ end_of_const_imm_patching:
 	mov [rdi-4], eax
 	jmp compile_loop
 end_of_branch_backwards_patching:
+# if c & 0xF0 is 0x50 then u32[dest-11] = sign_ext(d) << 3
+       cmp r10, 0x50
+       jne end_of_stack_offset_patching
+       movsx eax, dl
+       shl eax, 3
+       mov [rdi-9], eax
+       jmp compile_loop
+end_of_stack_offset_patching:
 # if c & 0xF0 is not 0x70 then continue compile_loop
 	cmp r10, 0x70
 	jne compile_loop
@@ -198,180 +206,205 @@ end_of_fixup:
 
 .align 16, 0
 hrmc_table:
-.zero 16*5 # 00-04
-.asciz "GetStdHandle"; .align 16,0 # 05
-.zero 16*4 # 06-09
-.asciz "WriteFile"; .align 16,0 # 0A
-.zero 16*5 # 0B-0F
-pop rax; movzx rax, BYTE PTR [rax]; push rax   ; .align 16, 0x90 # 10
-pop rax; movsx rax, BYTE PTR [rax]; push rax   ; .align 16, 0x90 # 11
-pop rax; movzx rax, WORD PTR [rax]; push rax   ; .align 16, 0x90 # 12
-pop rax; movsx rax, WORD PTR [rax]; push rax   ; .align 16, 0x90 # 13
-pop rax; mov eax, DWORD PTR [rax]; push rax    ; .align 16, 0x90 # 14
-pop rax; movsxd rax, DWORD PTR [rax]; push rax ; .align 16, 0x90 # 15
-.zero 16*2 # 16-17
-pop rax; mov rax, QWORD PTR [rax]; push rax ; .align 16, 0x90 # 18
-pop rax; mov rax, QWORD PTR [rax]; push rax ; .align 16, 0x90 # 19
-.zero 16*6 # 1A-1F
-.zero 16*16 # 20-2F
-.zero 16*2 # 30-31
-.byte 'K', 0,   'E', 0,    'R', 0,   'N', 0,    'E', 0,   'L', 0,    '3', 0,   '2', 0    # 32 pop rax; mov rax, QWORD PTR [rax]; push rax
-.byte '.', 0,   'D', 0,    'L', 0,   'L', 0,    0x00,0x00,0x00,0x00, 0x00,0x00,0x00,0x00 # 33 pop rax; mov rax, QWORD PTR [rax]; push rax
-.zero 16*12 # 33-3F
-.zero 16*16 # 40-4F
-pop rax; mov BYTE PTR[rax],al ;   .align 16, 0x90 # 50
-pop rax; mov BYTE PTR[rax],al ;   .align 16, 0x90 # 51
-pop rax; mov WORD PTR[rax],ax ;   .align 16, 0x90 # 52
-pop rax; mov WORD PTR[rax],ax ;   .align 16, 0x90 # 53
-pop rax; mov DWORD PTR[rax],eax ; .align 16, 0x90 # 54
-pop rax; mov DWORD PTR[rax],eax ; .align 16, 0x90 # 55
-.zero 16*2 # 56-57
-pop rax; mov QWORD PTR[rax],rax ; .align 16, 0x90 # 58
-pop rax; mov QWORD PTR[rax],rax ; .align 16, 0x90 # 59
-.zero 16*5 # 5A-5E
-push rbp; mov rbp, rsp ;          .align 16, 0x90 # 5F
-.zero 16*1 # 60
-pop rcx;                          .align 16, 0x90 # 61
-pop rcx; pop rdx;                 .align 16, 0x90 # 62
-pop rcx; pop rdx; pop r8;         .align 16, 0x90 # 63
-pop rcx; pop rdx; pop r8; pop r9; sub rsp, 0x20; .align 16, 0x90 # 64 rsp-20 is for shadow space
-.zero 16*10 # 65-6E
-and rsp, -16; .align 16, 0x90 # 6F stack must be 16 byte aligned on function entry
-.zero 16*14 # 70-7D
-or al,al ; .align 16, 0x90 # 7E
-or rax,rax ; .align 16, 0x90 # 7F
-.zero 16*16 # 80-8F
-.zero 16*16 # 90-9F
-pop rcx; pop rax; or rax, rcx; push rax ; .align 16, 0x90 # A0
-pop rax; not rax; push rax; ; .align 16, 0x90 # A1
-cqo; pop rcx; pop rax; div rax, rcx; push rax ; .align 16, 0x90 # A2
-pop rcx; pop rax; shr rax, rcx; push rax ; .align 16, 0x90 # A3
-pop rcx; pop rax; shl rax, rcx; push rax ; .align 16, 0x90 # A4
-cqo; pop rcx; pop rax; div rax, rcx; push rdx ; .align 16, 0x90 # A5
-pop rcx; pop rax; xor rax, rcx; push rax ; .align 16, 0x90 # A6
-pop rcx; pop rax; and rax, rcx; push rax ; .align 16, 0x90 # A7
-pop rax; neg rax; push rax; ; .align 16, 0x90 # A8
-pop rcx; pop rax; sar rax, rcx; push rax ; .align 16, 0x90 # A9
-pop rcx; pop rax; add rax, rcx; push rax ; .align 16, 0x90 # AA
-pop rcx; pop rax; sub rax, rcx; push rax ; .align 16, 0x90 # AB
-pop rcx; pop rax; imul rcx; push rdx ; .align 16, 0x90 # AC
-cqo; pop rcx; pop rax; idiv rax, rcx; push rax ; .align 16, 0x90 # AD
-pop rcx; pop rax; imul rcx; push rax ; .align 16, 0x90 # AE
-cqo; pop rcx; pop rax; idiv rax, rcx; push rdx ; .align 16, 0x90 # AF
-.byte 0x90,0x90, 0x90,0x90,0x90,0x90;pop rax; test rax, rax; je mzhdr; # B0 
-.zero 16*6 # B1-B6
-pop rax; mov rsp, rbp; pop rbp; ret ; .align 16, 0x90 # B7
-.zero 16*3 # B8-BA
-.byte 0x90,0x90,0x90,0x90, 0x90,0x90,0x90,0x90, 0x90,0x90,0x90;jmp mzhdr; # BB
-.zero 16*3 # BC-BE
-.byte 0x90,0x90,0x90,0x90, 0x90,0x90,0x90,0x90, 0x90,0x90,0x90;jmp mzhdr; # BF
-.zero 16*1 # C0
-pop rcx; pop rax; cmp rax,rcx; setne al; movsx rax, al ; push rax; .align 16, 0x90 # C1
-pop rcx; pop rax; cmp rax,rcx; setbe al; movsx rax, al ; push rax; .align 16, 0x90 # C2
-pop rcx; pop rax; cmp rax,rcx; setae al; movsx rax, al ; push rax; .align 16, 0x90 # C3
-pop rcx; pop rax; cmp rax,rcx; setl al; movsx rax, al ; push rax; .align 16, 0x90 # C4
-.zero 16*1 # C5
-pop rcx; pop rax; cmp rax,rcx; setle al; movsx rax, al ; push rax; .align 16, 0x90 # C6
-pop rcx; pop rax; cmp rax,rcx; setg al; movsx rax, al ; push rax; .align 16, 0x90 # C7
-.zero 16*1 # C8
-pop rcx; pop rax; cmp rax,rcx; setge al; movsx rax, al ; push rax; .align 16, 0x90 # C9
-pop rcx; pop rax; cmp rax,rcx; seta al; movsx rax, al ; push rax; .align 16, 0x90 # CA
-pop rcx; pop rax; cmp rax,rcx; setb al; movsx rax, al ; push rax; .align 16, 0x90 # CB
-.zero 16*2 # CC-CD
-pop rcx; pop rax; cmp rax,rcx; sete al; movsx rax, al ; push rax; .align 16, 0x90 # CE
-.zero 16*1 # CF
-.zero 16*1 # D0
-.byte 0x90,0x90,0x90,0x90; mov rax, QWORD PTR [rbx+0x76543210]; push rax; .byte 0x90,0x90,0x90,0x90; # D1
-.zero 16*3 # D2-D4
-.byte 0x90,0x90,0x90; pop rax; mov QWORD PTR[rbx+0x76543210],rax; .byte 0x90, 0x90,0x90,0x90,0x90; # D5
-.zero 16*4 # D6-D9
-.byte 0x90,0x90,0x90,0x90; mov rcx, QWORD PTR [rbx+0x76543210]; pop rax; add rax, rcx; push rax # DA
-.zero 16*3 # DB-DE
-.byte 0x90,0x90,0x90,0x90; lea rax, QWORD PTR [rbx+0x76543210]; push rax; .byte 0x90,0x90,0x90,0x90; # DE
-.byte 0x90,0x90,0x90,0x90; mov rax, [rbx+0x76543210]; call rax; push rax; .byte 0x90,0x90; # DF
-.zero 16*1 # E0
-.byte 0x90,0x90,0x90,0x90, 0x90,0x90;push 0x2a; .byte 0x90,0x90,0x90,0x90, 0x90,0x90,0x90,0x90; # E1 
-.zero 16*3 # E2-E4
-.byte 0x90,0x90,0x90,0x90, 0x90; pop rax; push 0x2a; pop rcx; add rax, rcx; mov rax, QWORD PTR[rax]; push rax; # E5
-.byte 0x90,0x90; mov rax,QWORD PTR gs:0x60; push rax; .byte 0x90,0x90,0x90,0x90; # E6
-.zero 16*3 # E7-E9
-.byte 0x90,0x90,0x90,0x90, 0x90; pop rcx; push 42; pop rax; add rax, rcx; push rax; .byte 0x90,0x90,0x90; # EA
-.zero 16*2 # EB-EC
-.byte 0x90,0x90,0x90,0x90, 0x90; pop rax; push 0x2a; pop rcx; add rax, rcx; mov rax, QWORD PTR[rax]; push rax; # ED
-.byte 0x90,0x90,0x90,0x90; mov rax, [rbp+42]; push rax; .byte 0x90,0x90,0x90, 0x90,0x90,0x90,0x90; # EE
-.zero 16*1 # EF
-.zero 16*16 # F0-FF
+.zero 16*2                                                                                                                 # 00-01
+.zero 16*1                                                                                                                 # 02 get_kernel32
+.byte 'K', 0,   'E', 0,    'R', 0,   'N', 0,    'E', 0,   'L', 0,    '3', 0,   '2', 0                                      # 03 kernel32 unicode string
+.byte '.', 0,   'D', 0,    'L', 0,   'L', 0,    0x00,0x00,0x00,0x00, 0x00,0x00,0x00,0x00                                   # 04 kernel32 unicode string continued
+.zero 16*1                                                                                                                 # 05
+.asciz "GetStdHandle"; .align 16,0                                                                                         # 06 "GetStdHandle"
+.zero 16*3                                                                                                                 # 07-09
+.zero 16*1                                                                                                                 # 0A GetProcAddress
+.zero 16*1                                                                                                                 # 0B
+.zero 16*1                                                                                                                 # 0C strcmp
+.zero 16*1                                                                                                                 # 0D
+.zero 16*1                                                                                                                 # 0E
+.asciz "WriteFile"; .align 16,0                                                                                            # 0F "WriteFile"
+.zero 16*16                                                                                                                # 10-1F
+.zero 16*16                                                                                                                # 20-2F
+.zero 16*16                                                                                                                # 30-3F
+.zero 16*16                                                                                                                # 40-4F
+.byte 0x90,0x90,0x90;pop rax; add rax, [rbp+0x76543210]; movzx rax, byte ptr [rax]; push rax;                              # 50 *+@u8:local
+.byte 0x90,0x90,0x90;pop rax; add rax, [rbp+0x76543210]; movsx rax, byte ptr [rax]; push rax;                              # 51 *+@i8:local
+pop rax; shl rax, 1; add rax, [rbp+0x76543210]; movzx rax, word ptr [rax]; push rax;                                       # 52 *+@u16:local
+pop rax; shl rax, 1; add rax, [rbp+0x76543210]; movsx rax, word ptr [rax]; push rax;                                       # 53 *+@i16:local
+pop rax; shl eax, 2; add rax, [rbp+0x76543210]; mov eax,   dword ptr [rax]; push rax;.byte 0x90,0x90;                      # 54 *+@u32:local
+pop rax; shl eax, 2; add rax, [rbp+0x76543210]; movsx rax, dword ptr [rax]; push rax;.byte 0x90;                           # 55 *+@i32:local
+.byte 0x90,0x90,0x90,0x90; mov rax, QWORD PTR [rbp+0x76543210]; push rax; .byte 0x90,0x90,0x90,0x90;                       # 56 @local
+.byte 0x90,0x90,0x90,0x90;lea rax, qword ptr [rbp+0x76543210]; push rax; .byte 0x90,0x90,0x90,0x90;                        # 57 &local
+pop rax; shl eax, 3; add rax, [rbp+0x76543210]; mov rax,   qword ptr [rax]; push rax;.byte 0x90;                           # 58 *+@u64:local
+.byte 0x90,0x90,0x90; pop rax; mov QWORD PTR[rbp+0x76543210],rax; .byte 0x90, 0x90,0x90,0x90,0x90;                         # 59 =local
+.byte 0x90,0x90,0x90,0x90; mov rcx, QWORD PTR [rbp+0x76543210]; pop rax; add rax, rcx; push rax                            # 5A +local
+.byte 0x90,0x90,0x90,0x90; mov rcx, QWORD PTR [rbp+0x76543210]; pop rax; sub rax, rcx; push rax                            # 5B -local
+.byte 0x90,0x90,0x90,0x90; mov rax, [rbp+0x76543210]; call rax; push rax; .byte 0x90,0x90;                                 # 5C call local
+.byte 0x90,0x90,0x90,0x90;sub rsp, 0x76543210; .byte 0x90,0x90,0x90,0x90,0x90;                                             # 5D deploy/reserve stack space
+.byte 0x90,0x90,0x90,0x90;sub rsp, 0x76543210; .byte 0x90,0x90,0x90,0x90,0x90;                                             # 5E deploy/reserve stack space
+.zero 16*1                                                                                                                 # 5F
+pop rax; movzx rax, BYTE PTR [rax]; push rax   ; .align 16, 0x90                                                           # 60 @u8
+pop rax; movsx rax, BYTE PTR [rax]; push rax   ; .align 16, 0x90                                                           # 61 @i8
+pop rax; movzx rax, WORD PTR [rax]; push rax   ; .align 16, 0x90                                                           # 62 @u16
+pop rax; movsx rax, WORD PTR [rax]; push rax   ; .align 16, 0x90                                                           # 63 @i16
+pop rax; mov eax, DWORD PTR [rax]; push rax    ; .align 16, 0x90                                                           # 64 @u32
+pop rax; movsxd rax, DWORD PTR [rax]; push rax ; .align 16, 0x90                                                           # 65 @i32
+.zero 16*2                                                                                                                 # 66-67
+pop rax; mov rax, QWORD PTR [rax]; push rax ; .align 16, 0x90                                                              # 68 @u64
+pop rax; mov rax, QWORD PTR [rax]; push rax ; .align 16, 0x90                                                              # 69 @i64
+.zero 16*6                                                                                                                 # 6A-6F
+.zero 16*14                                                                                                                # 70-7D
+or al,al ; .align 16, 0x90                                                                                                 # 7E {
+or rax,rax ; .align 16, 0x90                                                                                               # 7F }
+.zero 16*16                                                                                                                # 80-8F
+pop rax; mov BYTE PTR[rax],al ;   .align 16, 0x90                                                                          # 90 =u8
+pop rax; mov BYTE PTR[rax],al ;   .align 16, 0x90                                                                          # 91 =i8
+pop rax; mov WORD PTR[rax],ax ;   .align 16, 0x90                                                                          # 92 =u16
+pop rax; mov WORD PTR[rax],ax ;   .align 16, 0x90                                                                          # 93 =i16
+pop rax; mov DWORD PTR[rax],eax ; .align 16, 0x90                                                                          # 94 =u32
+pop rax; mov DWORD PTR[rax],eax ; .align 16, 0x90                                                                          # 95 =i32
+.zero 16*2                                                                                                                 # 96-97
+pop rax; mov QWORD PTR[rax],rax ; .align 16, 0x90                                                                          # 98 =u64
+pop rax; mov QWORD PTR[rax],rax ; .align 16, 0x90                                                                          # 99 =i64
+.zero 16*6                                                                                                                 # 9A-9F
+pop rcx; pop rax;      or rax, rcx; push rax ; .align 16, 0x90                                                             # A0 or
+pop rax;               not rax; push rax; ; .align 16, 0x90                                                                # A1 not
+cqo; pop rcx; pop rax; div rax, rcx; push rax ; .align 16, 0x90                                                            # A2 udiv
+pop rcx; pop rax;      mul rcx; push rdx ; .align 16, 0x90                                                                 # A3 upper umul
+pop rcx; pop rax;      shl rax, rcx; push rax ; .align 16, 0x90                                                            # A4 shl
+pop rcx; pop rax;      xor rax, rcx; push rax ; .align 16, 0x90                                                            # A5 xor
+cqo; pop rcx; pop rax; div rax, rcx; push rdx ; .align 16, 0x90                                                            # A6 umod
+pop rcx; pop rax;      shr rax, rcx; push rax ; .align 16, 0x90                                                            # A7 shr
+pop rax;               neg rax; push rax; ; .align 16, 0x90                                                                # A8 neg
+pop rcx; pop rax;      sar rax, rcx; push rax ; .align 16, 0x90                                                            # A9 sar
+pop rcx; pop rax;      add rax, rcx; push rax ; .align 16, 0x90                                                            # AA add
+pop rcx; pop rax;      sub rax, rcx; push rax ; .align 16, 0x90                                                            # AB sub
+cqo; pop rcx; pop rax; idiv rax, rcx; push rdx ; .align 16, 0x90                                                           # AC mod
+cqo; pop rcx; pop rax; idiv rax, rcx; push rax ; .align 16, 0x90                                                           # AD div
+pop rcx; pop rax;      imul rcx; push rax ; .align 16, 0x90                                                                # AE mul
+pop rcx; pop rax;      and rax, rcx; push rax ; .align 16, 0x90                                                            # AF and
+.byte 0x90,0x90, 0x90,0x90,0x90,0x90;pop rax; test rax, rax; je mzhdr;                                                     # B0 ?
+pop rcx;                          .align 16, 0x90                                                                          # B1 pop 1 abi reg
+pop rcx; pop rdx;                 .align 16, 0x90                                                                          # B2 pop 2 abi regs
+pop rcx; pop rdx; pop r8;         .align 16, 0x90                                                                          # B3 pop 3 abi regs
+pop rcx; pop rdx; pop r8; pop r9; sub rsp, 0x20; .align 16, 0x90                                                           # B4 pop 4 abi regs; rsp-20 is for shadow space
+.zero 16*5                                                                                                                 # B5-B9 used in linux
+and rsp, -16; .align 16, 0x90                                                                                              # BA stack must be 16 byte aligned on function entry
+.byte 0x90,0x90,0x90,0x90, 0x90,0x90,0x90,0x90, 0x90,0x90,0x90;jmp mzhdr;                                                  # BB backward (continue)
+pop rax; call rax; push rax; .align 16, 0x90                                                                               # BC call procedure
+push rbp; mov rbp, rsp ;          .align 16, 0x90                                                                          # BD deploy stack frame
+pop rax; mov rsp, rbp; pop rbp; ret ; .align 16, 0x90                                                                      # BE return
+.byte 0x90,0x90,0x90,0x90, 0x90,0x90,0x90,0x90, 0x90,0x90,0x90;jmp mzhdr;                                                  # BF forward (break)
+.zero 16*1                                                                                                                 # C0
+pop rcx; pop rax; cmp rax,rcx; setne al; movsx rax, al ; push rax; .align 16, 0x90                                         # C1 !=
+pop rcx; pop rax; cmp rax,rcx; setbe al; movsx rax, al ; push rax; .align 16, 0x90                                         # C2 <=u
+pop rcx; pop rax; cmp rax,rcx; setae al; movsx rax, al ; push rax; .align 16, 0x90                                         # C3 >=u
+pop rcx; pop rax; cmp rax,rcx; setl al; movsx rax, al ; push rax; .align 16, 0x90                                          # C4 <
+.zero 16*1                                                                                                                 # C5
+pop rcx; pop rax; cmp rax,rcx; setle al; movsx rax, al ; push rax; .align 16, 0x90                                         # C6 <=
+pop rcx; pop rax; cmp rax,rcx; setg al; movsx rax, al ; push rax; .align 16, 0x90                                          # C7 >
+.zero 16*1                                                                                                                 # C8
+pop rcx; pop rax; cmp rax,rcx; setge al; movsx rax, al ; push rax; .align 16, 0x90                                         # C9 >=
+pop rcx; pop rax; cmp rax,rcx; seta al; movsx rax, al ; push rax; .align 16, 0x90                                          # CA >u
+pop rcx; pop rax; cmp rax,rcx; setb al; movsx rax, al ; push rax; .align 16, 0x90                                          # CB <u
+.zero 16*2                                                                                                                 # CC-CD
+pop rcx; pop rax; cmp rax,rcx; sete al; movsx rax, al ; push rax; .align 16, 0x90                                          # CE ==
+.zero 16*1                                                                                                                 # CF
+.byte 0x90,0x90,0x90;pop rax; add rax, [rbx+0x76543210]; movzx rax, byte ptr [rax]; push rax;                              # D0 *+@u8:global
+.byte 0x90,0x90,0x90;pop rax; add rax, [rbx+0x76543210]; movsx rax, byte ptr [rax]; push rax;                              # D1 *+@i8:global
+pop rax; shl rax, 1; add rax, [rbx+0x76543210]; movzx rax, word ptr [rax]; push rax;                                       # D2 *+@u16:global
+pop rax; shl rax, 1; add rax, [rbx+0x76543210]; movsx rax, word ptr [rax]; push rax;                                       # D3 *+@i16:global
+pop rax; shl eax, 2; add rax, [rbx+0x76543210]; mov eax,   dword ptr [rax]; push rax;.byte 0x90,0x90;                      # D4 *+@u32:global
+pop rax; shl eax, 2; add rax, [rbx+0x76543210]; movsx rax, dword ptr [rax]; push rax;.byte 0x90;                           # D5 *+@i32:global
+.byte 0x90,0x90,0x90,0x90; mov rax, QWORD PTR [rbx+0x76543210]; push rax; .byte 0x90,0x90,0x90,0x90;                       # D6 @global
+.byte 0x90,0x90,0x90,0x90;lea rax, qword ptr [rbx+0x76543210]; push rax; .byte 0x90,0x90,0x90,0x90;                        # D7 &global
+pop rax; shl eax, 3; add rax, [rbx+0x76543210]; mov rax,   qword ptr [rax]; push rax;.byte 0x90;                           # D8 *+@u64:global
+.byte 0x90,0x90,0x90; pop rax; mov QWORD PTR[rbx+0x76543210],rax; .byte 0x90, 0x90,0x90,0x90,0x90;                         # D9 =global
+.byte 0x90,0x90,0x90,0x90; mov rcx, QWORD PTR [rbx+0x76543210]; pop rax; add rax, rcx; push rax                            # DA +global
+.byte 0x90,0x90,0x90,0x90; mov rcx, QWORD PTR [rbx+0x76543210]; pop rax; sub rax, rcx; push rax                            # DB -global
+.byte 0x90,0x90,0x90,0x90; mov rax, [rbx+0x76543210]; call rax; push rax; .byte 0x90,0x90;                                 # DC call global
+.zero 16*3                                                                                                                 # DD-DF
+.byte 0x90,0x90,0x90,0x90,0x58,0x48,0x05,0x2a,0x00,0x00,0x00; movzx rax, byte ptr [rax]; push rax;                         # E0 +@u8:imm  
+.byte 0x90,0x90,0x90,0x90,0x58,0x48,0x05,0x2a,0x00,0x00,0x00; movsx rax, byte ptr [rax]; push rax;                         # E1 +@i8:imm  
+.byte 0x90,0x90,0x90,0x90,0x58,0x48,0x05,0x2a,0x00,0x00,0x00; movzx rax, word ptr [rax]; push rax;                         # E2 +@u16:imm 
+.byte 0x90,0x90,0x90,0x90,0x58,0x48,0x05,0x2a,0x00,0x00,0x00; movsx rax, word ptr [rax]; push rax;                         # E3 +@i16:imm 
+.byte 0x90,0x90,0x90,0x90,0x58,0x48,0x05,0x2a,0x00,0x00,0x00; mov   eax, dword ptr [rax]; push rax;.byte 0x90,0x90;        # E4 +@u32:imm 
+.byte 0x90,0x90,0x90,0x90,0x58,0x48,0x05,0x2a,0x00,0x00,0x00; movsx rax, dword ptr [rax]; push rax;.byte 0x90;             # E5 +@i32:imm 
+.byte 0x90,0x90,0x90,0x90,0x90,0x90;push 0x2a; .byte 0x90,0x90,0x90,0x90, 0x90,0x90,0x90,0x90;                             # E6 load imm
+.byte 0x90,0x90,0x90,0x90,0x90,0x90;push 42; pop rax; mov rsp, rbp; pop rbp; ret;.byte 0x90,0x90;                          # E7 ret imm
+.byte 0x90,0x90,0x90,0x90,0x58,0x48,0x05,0x2a,0x00,0x00,0x00; mov   rax, qword ptr [rax]; push rax;.byte 0x90;             # E8 +@u64:imm
+.byte 0x90,0x90; mov rax,QWORD PTR gs:0x60; push rax; .byte 0x90,0x90,0x90,0x90;                                           # E9 GS:imm
+.byte 0x90,0x90,0x90; pop rax; add rax, 42; push rax; .byte 0x90,0x90,0x90,0x90,0x90,0x90,0x90;                            # EA +imm
+.byte 0x90,0x90,0x90; pop rax; sub rax, 42; push rax; .byte 0x90,0x90,0x90,0x90,0x90,0x90,0x90;                            # EB -imm
+.zero 16*4                                                                                                                 # EC-EF
+.zero 16*16                                                                                                                # F0-FF
 
 hrmc_bytecode:
 ## int main()
-.byte 0x7E,0x9E, 0x5F,0x00
-.byte 0xDF,0x92, 0xD5,0x3B
-.byte 0xDE,0x05, 0xD1,0x3B, 0xDF,0x9A, 0xD5,0x90
-.byte 0xDE,0x0A, 0xD1,0x3B, 0xDF,0x9A, 0xD5,0x9F
-.byte 0xE1,0xF5, 0x61,0x00, 0xDF,0x90, 0xD5,0x07
-.byte 0x6F,0x00, 0xE1,0x00, 0xDE,0x01, 0xE1,0x0C, 0xDE,0x05, 0xD1,0x07, 0x64,0x00, 0xDF,0x9F
-.byte 0xB7,0x00
+.byte 0x7E,0x0E, 0xBD,0x00 # 0E=&main; setup stack frame
+.byte 0xDC,0x02, 0xD9,0x12 # get_kernel32() =12
+.byte 0xD7,0x06, 0xD6,0x12, 0xDC,0x0A, 0xD9,0x16 # GetProcAddress(kernel32, "GetStdHandle") =16
+.byte 0xD7,0x0F, 0xD6,0x12, 0xDC,0x0A, 0xD9,0x1F # GetProcAddress(kernel32, "WriteFileA") =1F
+.byte 0xE6,0xF5, 0xB1,0x00, 0xDC,0x16, 0xD9,0x10 # GetStdHandle(-11) aka GetStdHandle(STD_OUTPUT_HANDLE) =10
+.byte 0xBA,0x00, 0xE6,0x00, 0xD7,0x01, 0xE6,0x0C, 0xD7,0x06, 0xD6,0x10, 0xB4,0x00, 0xDC,0x1F # WriteFileA(fout,msg,size,&written,0) aka WriteFileA(10,&06,12,&01,0)
+.byte 0xBE,0x00 # return
 
 ## void* get_kernel32()
-.byte 0x7E,0x92, 0x5F,0x00
-.byte 0xE6,0x60, 0xED,0x18, 0xED,0x20, 0xD5,0x2D
-.byte 0xD1,0x2D, 0xED,0x20, 0xD5,0x3B
-.byte 0x7E,0x71, 0xD1,0x3B, 0xB0,0x71
-     .byte 0xD1,0x2D, 0xEA,0x38, 0x12,0x00, 0xD5,0x31
-     .byte 0xD1,0x2D, 0xED,0x40, 0xD5,0x3A
-     .byte 0xD1,0x31, 0xEA,0xFE, 0xD5,0x01
-     .byte 0xE1,0x16, 0xD5,0x02
-     .byte 0x7E,0x72, 0xD1,0x02, 0xE1,0x00, 0xC9,0x00, 0xB0,0x72
-          .byte 0xD1,0x3A, 0xDA,0x01, 0x12,0x00, 0xD5,0x03
-          .byte 0xDE,0x32, 0xDA,0x02, 0x12,0x00, 0xD5,0x04
-          .byte 0x7E,0x73, 0xD1,0x03, 0xD1,0x04, 0xC1,0x00, 0xD1,0x03, 0xD1,0x04, 0xEA,0x20, 0xC1,0x00, 0xA7,0x00, 0xB0,0x73
-               .byte 0xBF,0x72
+.byte 0x7E,0x02, 0xBD,0x00 # 02=&get_kernel32; setup stack frame
+.byte 0xE9,0x60, 0xE8,0x18, 0xE8,0x20, 0xD9,0x1D # @gs:60 +@u64:0x18 +@u64:0x20 =1D
+.byte 0xD6,0x1D, 0xE8,0x20, 0xD9,0x1B # @1D +@u64:0x20 =1B
+.byte 0x7E,0x71, 0xD6,0x1B, 0xB0,0x71 # @1B ?
+     .byte 0xD6,0x1D, 0xE2,0x38, 0xD9,0x11 # @1D +@u16:0x38 =11
+     .byte 0xD6,0x1D, 0xE8,0x40, 0xD9,0x1A # @1D +@u64:0x40 =1A
+     .byte 0xD6,0x11, 0xEB,0x02, 0xD9,0x11 # @11 -2 =11
+     .byte 0xE6,0x16, 0xD9,0x12 # 22 =12
+     .byte 0x7E,0x72, 0xD6,0x12, 0xE6,0x00, 0xC9,0x00, 0xB0,0x72 # @12 0 >= ?
+          .byte 0xD6,0x1A, 0xDA,0x11, 0x12,0x00, 0xD9,0x13 # @1A +@11 @u16 =13
+          .byte 0xD7,0x03, 0xDA,0x12, 0x12,0x00, 0xD9,0x14 # &03 +@12 @u16 =14
+          .byte 0x7E,0x73, 0xD6,0x13, 0xD6,0x14, 0xC1,0x00, 0xD6,0x13, 0xD6,0x14, 0xEA,0x20, 0xC1,0x00, 0xA7,0x00, 0xB0,0x73 # @13 @14 != @13 @14 +0x20 != & ?
+               .byte 0xBF,0x72 # break
           .byte 0x7F,0x73
-          .byte 0xD1,0x01, 0xEA,0xFE, 0xD5,0x01
-          .byte 0xD1,0x02, 0xEA,0xFE, 0xD5,0x02
-          .byte 0xBB,0x72
+          .byte 0xD6,0x11, 0xEB,0x02, 0xD9,0x11 # @11 -2 =11
+          .byte 0xD6,0x12, 0xEB,0x02, 0xD9,0x12 # @12 -2 =12
+          .byte 0xBB,0x72 # continue
      .byte 0x7F,0x72
-     .byte 0x7E,0x72, 0xD1,0x02, 0xE1,0x00, 0xC4,0x00, 0xB0,0x72
-          .byte 0xD1,0x3B, 0xB7,0x00
+     .byte 0x7E,0x72, 0xD6,0x12, 0xE6,0x00, 0xC4,0x00, 0xB0,0x72 # @12 0 < ?
+          .byte 0xD6,0x1B, 0xBE,0x00 # @1B return
      .byte 0x7F,0x72
-     .byte 0xD1,0x2D, 0x18,0x00, 0xD5,0x2D
-     .byte 0xD1,0x2D, 0xED,0x20, 0xD5,0x3B
-     .byte 0xBB,0x71
+     .byte 0xD6,0x1D, 0x18,0x00, 0xD9,0x1D # @1D @u64 =1D
+     .byte 0xD6,0x1D, 0xE8,0x20, 0xD9,0x1B # @1D +@u64:0x20 =1B
+     .byte 0xBB,0x71 # continue
 .byte 0x7F,0x71
-.byte 0xE1,0x00, 0xB7,0x00
+.byte 0xE7,0x00 # return0
 
 ## int strcmp(char* s1, char* s2)
-.byte 0x7E,0x9C, 0x5F,0x00, 0xEE,0x10, 0xD5,0x01, 0xEE,0x18, 0xD5,0x02
-.byte 0x7E,0x71, 0xD1,0x01, 0x10,0x00, 0xB0,0x71, 0xD1,0x02, 0x10,0x00, 0xB0,0x71, 0xD1,0x01, 0x10,0x00, 0xD1,0x02, 0x10,0x00, 0xCE,0x00, 0xB0,0x71
-     .byte 0xD1,0x01, 0xEA,0x01, 0xD5,0x01, 0xD1,0x02, 0xEA,0x01, 0xD5,0x02
-     .byte 0xBB,0x71
+.byte 0x7E,0x0C, 0xBD,0x00 # 0C=&strcmp; setup stack frame
+.byte 0x7E,0x71, 0x56,0x02, 0x60,0x00, 0xB0,0x71, 0x56,0x03, 0x60,0x00, 0xB0,0x71, 0x56,0x02, 0x60,0x00, 0x56,0x03, 0x60,0x00, 0xCE,0x00, 0xB0,0x71 # $02 @u8 ? $03 @u8 ? $02 @u8 $03 @u8 == ?
+     .byte 0x56,0x02, 0xEA,0x01, 0x59,0x02, 0x56,0x03, 0xEA,0x01, 0x59,0x03 # $02 +1 =$02 $03 +1 =$03
+     .byte 0xBB,0x71 # continue
 .byte 0x7F,0x71
-.byte 0x7E,0x71, 0xD1,0x01, 0x10,0x00, 0xD1,0x02, 0x10,0x00, 0xCE,0x00, 0xB0,0x71
-     .byte 0xE1,0x00, 0xB7,0x00
+.byte 0x7E,0x71, 0x56,0x02, 0x60,0x00, 0x56,0x03, 0x60,0x00, 0xCE,0x00, 0xB0,0x71 # $02 @u8 $03 @u8 == ?
+     .byte 0xE7,0x00 # return0
 .byte 0x7F,0x71
-.byte 0xD1,0x01, 0x10,0x00, 0xD1,0x02, 0x10,0x00, 0xAB,0x00, 0xB7,0x00
+.byte 0x56,0x02, 0x60,0x00, 0x56,0x03, 0x60,0x00, 0xAB,0x00, 0xBE,0x00 # $02 @u8 $03 @u8 - return
 
 ## void* GetProcAddress(void* handle, char* proc_name)
-.byte 0x7E,0x9A, 0x5F,0x00, 0xEE,0x10, 0xD5,0x3B, 0xEE,0x18, 0xD5,0x2A
-.byte 0xD1,0x3B, 0xEA,0x3C, 0x14,0x00, 0xDA,0x3B, 0xD5,0x3D
-.byte 0xD1,0x3D, 0xEA,0x18, 0xEA,0x70, 0x14,0x00, 0xDA,0x3B, 0xD5,0x37
-.byte 0xD1,0x37, 0xEA,0x20, 0x14,0x00, 0xDA,0x3B, 0xD5,0x27
-.byte 0xE1,0x00, 0xD5,0x30
-.byte 0xD1,0x37, 0xEA,0x18, 0x15,0x00, 0xD5,0x3F
-.byte 0xE1,0x00, 0xD5,0x31
-.byte 0xE1,0x00, 0xD5,0x3C
-.byte 0x7E,0x71
-     .byte 0x7E,0x72, 0xD1,0x3C, 0xE1,0x00, 0xC7,0x00, 0xB0,0x72, 0xD1,0x31, 0xD5,0x30, 0x7F,0x72
-     .byte 0x7E,0x72, 0xD1,0x3C, 0xE1,0x00, 0xC4,0x00, 0xB0,0x72, 0xD1,0x31, 0xD5,0x3F, 0x7F,0x72
-     .byte 0xD1,0x3F, 0xDA,0x30, 0xE1,0x01, 0xA9,0x00, 0xD5,0x31
-     .byte 0xD1,0x31, 0xE1,0x02, 0xA4,0x00, 0xDA,0x27, 0x14,0x00, 0xDA,0x3B, 0xD5,0x3A
-     .byte 0xD1,0x3A, 0xD1,0x2A, 0xDF,0x9C, 0xD5,0x3C
-.byte 0xD1,0x3C, 0xE1,0x00, 0xC1,0x00, 0xB0,0x71, 0xBB,0x71, 0x7F,0x71
-.byte 0x7E,0x71, 0xD1,0x31, 0xE1,0x02, 0xA4,0x00, 0xDA,0x27, 0x14,0x00, 0xDA,0x3B, 0xD1,0x2A, 0xDF,0x9C, 0xE1,0x00, 0xC1,0x00, 0xB0,0x71, 0xE1,0x00, 0xB7,0x00, 0x7F,0x71
-.byte 0xD1,0x37, 0xEA,0x24, 0x14,0x00, 0xDA,0x3B, 0xD5,0x07
-.byte 0xD1,0x37, 0xEA,0x1C, 0x14,0x00, 0xDA,0x3B, 0xD5,0x38
-.byte 0xD1,0x31, 0xE1,0x01, 0xA4,0x00, 0xDA,0x07, 0x12,0x00, 0xE1,0x02, 0xA4,0x00, 0xDA,0x38, 0x14,0x00, 0xDA,0x3B, 0xB7,0x00
-.byte 0x00,0x00
+.byte 0x7E,0x0A, 0xBD,0x00 # 0A=&GetProcAddress; setup stack frame
+.byte 0x56,0x02, 0xE4,0x3C, 0x5A,0x02, 0xD9,0x1D # $02 +@u32:0x3C +$02 =1D
+.byte 0xD6,0x1D, 0xEA,0x18, 0xE4,0x70, 0x5A,0x02, 0xD9,0x1E # @1D +0x18 +@u32:0x70 +$02 =1E
+.byte 0xD6,0x1E, 0xE4,0x20, 0x5A,0x02, 0xD9,0x1A # @1E +@u32:0x20 +$02 =1A
+.byte 0xE6,0x00, 0xD9,0x10 # 0 =10
+.byte 0xD6,0x1E, 0xE5,0x18, 0xD9,0x1F # @1E +@i32:0x18 =1F
+.byte 0xE6,0x00, 0xD9,0x11 # 0 =11
+.byte 0xE6,0x00, 0xD9,0x1C # 0 =1C
+.byte 0x7E,0x71 # do {
+     .byte 0x7E,0x72, 0xD6,0x1C, 0xE6,0x00, 0xC7,0x00, 0xB0,0x72, 0xD6,0x11, 0xD9,0x10, 0x7F,0x72 # @1C 0 > ? @11 =10
+     .byte 0x7E,0x72, 0xD6,0x1C, 0xE6,0x00, 0xC4,0x00, 0xB0,0x72, 0xD6,0x11, 0xD9,0x1F, 0x7F,0x72 # @1C 0 < ? @11 =1F
+     .byte 0xD6,0x1F, 0xDA,0x10, 0xE6,0x01, 0xA9,0x00, 0xD9,0x11 # @1F @10 + 1 >> =11
+     .byte 0xD6,0x11, 0xD4,0x1A, 0x5A,0x02, 0xD9,0x10 # @11 *+@u32:1A +$02 =12
+     .byte 0xD6,0x12, 0x56,0x03, 0xDC,0x0C, 0xD9,0x1C # @12 $03 strcmp =1C
+.byte 0xD6,0x1C, 0xE6,0x00, 0xC1,0x00, 0xB0,0x71, 0xBB,0x71, 0x7F,0x71 # @1C 0 != ? continue }
+.byte 0x7E,0x71, 0xD6,0x11, 0xD4,0x1A, 0x5A,0x02, 0x56,0x03, 0xDC,0x0C, 0xE6,0x00, 0xC1,0x00, 0xB0,0x71, 0xE7,0x00, 0x7F,0x71 # index *+@u32:1A +$02 $03 strcmp 0 != ? return0
+.byte 0xD6,0x1E, 0xE4,0x24, 0x5A,0x02, 0xD9,0x17 # @1E +@u32:0x24 +$02 =17
+.byte 0xD6,0x1E, 0xE4,0x1C, 0x5A,0x02, 0xD9,0x18 # @1E +@u32:0x1C +$02 =18
+.byte 0xD6,0x11, 0xD2,0x17, 0xD4,0x18, 0x5A,0x02, 0xBE,0x00 # @11 *+@u16:17 *+@u32:18 +$02 return
+.byte 0x00,0x00 # end compilation
 
 .fill 1024 - ($ - hrmc_bytecode), 1, 0x90
 hrmc_dest:
