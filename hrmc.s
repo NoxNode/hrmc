@@ -303,10 +303,10 @@ pop rax;               not rax; push rax; ; .align 16, 0x90                     
 cqo; pop rcx; pop rax; div rax, rcx; push rax ; .align 16, 0x90                                                            # A2 udiv
 pop rcx; pop rax;      mul rcx; push rdx ; .align 16, 0x90                                                                 # A3 upper umul
 pop rcx; pop rax;      shl rax, rcx; push rax ; .align 16, 0x90                                                            # A4 shl
-pop rcx; pop rax;      xor rax, rcx; push rax ; .align 16, 0x90                                                            # A5 xor
+pop rax;               neg rax; push rax; ; .align 16, 0x90                                                                # A5 neg
 cqo; pop rcx; pop rax; div rax, rcx; push rdx ; .align 16, 0x90                                                            # A6 umod
 pop rcx; pop rax;      shr rax, rcx; push rax ; .align 16, 0x90                                                            # A7 shr
-pop rax;               neg rax; push rax; ; .align 16, 0x90                                                                # A8 neg
+pop rcx; pop rax;      xor rax, rcx; push rax ; .align 16, 0x90                                                            # A8 xor
 pop rcx; pop rax;      sar rax, rcx; push rax ; .align 16, 0x90                                                            # A9 sar
 pop rcx; pop rax;      add rax, rcx; push rax ; .align 16, 0x90                                                            # AA add
 pop rcx; pop rax;      sub rax, rcx; push rax ; .align 16, 0x90                                                            # AB sub

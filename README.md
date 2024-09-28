@@ -41,7 +41,7 @@ The following is an explantion of the design.
 		- 5x/Dx do a `*+@` which is useful for subscripting primitive arrays
 		- Ex just does a `+@` which is useful for accessing primitive struct members
 - 5x/Dx/Ex also use x like:
-	- A/B for + and -
+	- A/B for + and - (A for Add, B for suB)
 	- 6/9 for load and store as u64
 - 5x/Dx both use x like:
 	- 7 for addr-of (& is on the 7 key)
@@ -62,6 +62,60 @@ The following is an explantion of the design.
 
 		Windows x64 calling convention requires 0x20 bytes of shadow space, whatever that is.
 		So 0x20 + 0x10 for the first 2 slots = rbp+0x30 aka slot 6
+
+The mnemonic/reasoning for all the entries in the remaining op groups (Ax, Bx, Cx) is as follows:
+
+
+| byte1 |      what it does      |                     mnemonic/reasoning                     |
+| ----- |      ------------      | ---------------------------------------------------------- |
+| A0    | or                     | 0 like O as in OR                                          |
+| A1    | not                    | 1 like ! but bitwise not logical                           |
+| A2    | udiv                   | 2 like a rotated u as in udiv                              |
+| A3    | umul upper 64 bits     | 3 like a rotated m as in mul                               |
+| A4    | shift left             | 4 is the number that most looks like < as in <<            |
+| A5    | negate                 | 5 like S as in Sign as in change Sign                      |
+| A6    | umod                   | 6 looks like C, signed modulo is C                         |
+| A7    | shift right            | 7 like a skewed > as in >>                                 |
+| A8    | xor                    | 8 ignore top and bottom and its an x                       |
+| A9    | arith shift right      | 9 like -> (see above) and the - is like sign aka arith     |
+| AA    | add                    | A for Add                                                  |
+| AB    | sub                    | B for suB                                                  |
+| AC    | modulo                 | C looks like a loop, modulo loops circular buffers         |
+| AD    | div                    | D for Div                                                  |
+| AE    | mul                    | E like a rotated M as in Mul                               |
+| AF    | and                    | F like a bitmask for an and                                |
+| B0    | branch if 0            | self explanatory                                           |
+| B1    | pop 1 abi reg          | self explanatory                                           |
+| B2    | pop 2 abi regs         | self explanatory                                           |
+| B3    | pop 3 abi regs         | self explanatory                                           |
+| B4    | pop 4 abi regs         | self explanatory                                           |
+| B5    | pop 5 abi regs         | self explanatory                                           |
+| B6    | pop 6 abi regs         | self explanatory                                           |
+| B7    | pop 7 abi regs         | self explanatory                                           |
+| B8    | pop 8 abi regs         | self explanatory                                           |
+| B9    | non-syscall abi        | 9 like plan9 -> unix -> linux which needs this             |
+| BA    | align stack            | self explanatory                                           |
+| BB    | branch back            | self explanatory                                           |
+| BC    | call proc              | self explanatory                                           |
+| BD    | deploy stack frame     | D for Deploy/setup stack frame and push abi regs           |
+| BE    | return                 | E for rEturn                                               |
+| BF    | branch forward         | self explanatory                                           |
+| C0    | unassigned             |                                                            |
+| C1    | not equal              | 1 like ! as in !=                                          |
+| C2    | lt or eq unsigned      | 2 like u as in unsigned (TODO: better mnemonic)            |
+| C3    | gt or eq unsigned      | 3 is gt 2 and 2 is unsigned                                |
+| C4    | lt signed              | 4 is the number that most looks like <                     |
+| C5    | unassigned             |                                                            |
+| C6    | lt or eq signed        | 6 like <- or <=                                            |
+| C7    | gt signed              | 7 like a skewed >                                          |
+| C8    | unassigned             |                                                            |
+| C9    | gt or eq signed        | 9 like -> or => or >=                                      |
+| CA    | gt unsigned            | A for Above aka unsigned >                                 |
+| CB    | lt unsigned            | B for Below aka usngiend <                                 |
+| CC    | unassigned             |                                                            |
+| CD    | unassigned             |                                                            |
+| CE    | equal to               | E for Equal to                                             |
+| CF    | unassigned             |                                                            |
 
 - Why isn't load and store on 1x and 5x?
 
