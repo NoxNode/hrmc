@@ -7,6 +7,26 @@
 ##objdump -M intel -x hrmc.exe
 /* Human Readable Machine Code compiler for Windows x64
 hrmc.s is a compiler for hrmc written in gnu assembler
+TODOs:
+make initial compile machine code callable
+	ret instead of jmp right away to hrmc_dest
+	load rsi and rdi from rsp+0x08 and rsp+0x10
+self compile
+	get file name from command line
+	get file size
+	infilebuf = alloc buffer of that size +1 for null
+	outfilebuf = alloc buffer of that size +1 for null
+	read file into inbuffer
+	iterate through inbuffer
+	if space, skip
+	if #, line skip
+	if hex pair, convert to byte and output to outbuffer
+	write outbuffer to file with .exe at end
+optimize
+	remove nops
+	remove redundant push/pops
+	reg alloc
+	adjust rel jmp offsets after or as we go
 */
 .intel_syntax noprefix
 .code64
@@ -157,13 +177,13 @@ end_of_const_imm_patching:
 	mov [rdi-4], eax
 	jmp compile_loop
 end_of_branch_backwards_patching:
-# if c & 0xF0 is 0x50 then u32[dest-11] = sign_ext(d) << 3
-       cmp r10, 0x50
-       jne end_of_stack_offset_patching
-       movsx eax, dl
-       shl eax, 3
-       mov [rdi-9], eax
-       jmp compile_loop
+# if c & 0xF0 is 0x50 then u32[dest-9] = sign_ext(d) << 3
+	cmp r10, 0x50
+	jne end_of_stack_offset_patching
+	movsx eax, dl
+	shl eax, 3
+	mov [rdi-9], eax
+	jmp compile_loop
 end_of_stack_offset_patching:
 # if c & 0xF0 is not 0x70 then continue compile_loop
 	cmp r10, 0x70
@@ -206,18 +226,21 @@ end_of_fixup:
 
 .align 16, 0
 hrmc_table:
-.zero 16*2                                                                                                                 # 00-01
+.zero 16*1                                                                                                                 # 00
+.zero 16*1                                                                                                                 # 01
 .zero 16*1                                                                                                                 # 02 get_kernel32
 .byte 'K', 0,   'E', 0,    'R', 0,   'N', 0,    'E', 0,   'L', 0,    '3', 0,   '2', 0                                      # 03 kernel32 unicode string
 .byte '.', 0,   'D', 0,    'L', 0,   'L', 0,    0x00,0x00,0x00,0x00, 0x00,0x00,0x00,0x00                                   # 04 kernel32 unicode string continued
 .zero 16*1                                                                                                                 # 05
 .asciz "GetStdHandle"; .align 16,0                                                                                         # 06 "GetStdHandle"
-.zero 16*3                                                                                                                 # 07-09
+.zero 16*1                                                                                                                 # 07
+.zero 16*1                                                                                                                 # 08
+.zero 16*1                                                                                                                 # 09
 .zero 16*1                                                                                                                 # 0A GetProcAddress
 .zero 16*1                                                                                                                 # 0B
 .zero 16*1                                                                                                                 # 0C strcmp
 .zero 16*1                                                                                                                 # 0D
-.zero 16*1                                                                                                                 # 0E
+.zero 16*1                                                                                                                 # 0E main
 .asciz "WriteFile"; .align 16,0                                                                                            # 0F "WriteFile"
 .zero 16*16                                                                                                                # 10-1F
 .zero 16*16                                                                                                                # 20-2F
@@ -245,10 +268,16 @@ pop rax; movzx rax, WORD PTR [rax]; push rax   ; .align 16, 0x90                
 pop rax; movsx rax, WORD PTR [rax]; push rax   ; .align 16, 0x90                                                           # 63 @i16
 pop rax; mov eax, DWORD PTR [rax]; push rax    ; .align 16, 0x90                                                           # 64 @u32
 pop rax; movsxd rax, DWORD PTR [rax]; push rax ; .align 16, 0x90                                                           # 65 @i32
-.zero 16*2                                                                                                                 # 66-67
+.zero 16*1                                                                                                                 # 66
+.zero 16*1                                                                                                                 # 67
 pop rax; mov rax, QWORD PTR [rax]; push rax ; .align 16, 0x90                                                              # 68 @u64
 pop rax; mov rax, QWORD PTR [rax]; push rax ; .align 16, 0x90                                                              # 69 @i64
-.zero 16*6                                                                                                                 # 6A-6F
+.zero 16*1                                                                                                                 # 6A
+.zero 16*1                                                                                                                 # 6B
+.zero 16*1                                                                                                                 # 6C
+.zero 16*1                                                                                                                 # 6D
+.zero 16*1                                                                                                                 # 6E
+.zero 16*1                                                                                                                 # 6F
 .zero 16*14                                                                                                                # 70-7D
 or al,al ; .align 16, 0x90                                                                                                 # 7E {
 or rax,rax ; .align 16, 0x90                                                                                               # 7F }
@@ -259,10 +288,16 @@ pop rax; mov WORD PTR[rax],ax ;   .align 16, 0x90                               
 pop rax; mov WORD PTR[rax],ax ;   .align 16, 0x90                                                                          # 93 =i16
 pop rax; mov DWORD PTR[rax],eax ; .align 16, 0x90                                                                          # 94 =u32
 pop rax; mov DWORD PTR[rax],eax ; .align 16, 0x90                                                                          # 95 =i32
-.zero 16*2                                                                                                                 # 96-97
+.zero 16*1                                                                                                                 # 96
+.zero 16*1                                                                                                                 # 97
 pop rax; mov QWORD PTR[rax],rax ; .align 16, 0x90                                                                          # 98 =u64
 pop rax; mov QWORD PTR[rax],rax ; .align 16, 0x90                                                                          # 99 =i64
-.zero 16*6                                                                                                                 # 9A-9F
+.zero 16*1                                                                                                                 # 9A
+.zero 16*1                                                                                                                 # 9B
+.zero 16*1                                                                                                                 # 9C
+.zero 16*1                                                                                                                 # 9D
+.zero 16*1                                                                                                                 # 9E
+.zero 16*1                                                                                                                 # 9F
 pop rcx; pop rax;      or rax, rcx; push rax ; .align 16, 0x90                                                             # A0 or
 pop rax;               not rax; push rax; ; .align 16, 0x90                                                                # A1 not
 cqo; pop rcx; pop rax; div rax, rcx; push rax ; .align 16, 0x90                                                            # A2 udiv
@@ -284,11 +319,15 @@ pop rcx;                          .align 16, 0x90                               
 pop rcx; pop rdx;                 .align 16, 0x90                                                                          # B2 pop 2 abi regs
 pop rcx; pop rdx; pop r8;         .align 16, 0x90                                                                          # B3 pop 3 abi regs
 pop rcx; pop rdx; pop r8; pop r9; sub rsp, 0x20; .align 16, 0x90                                                           # B4 pop 4 abi regs; rsp-20 is for shadow space
-.zero 16*5                                                                                                                 # B5-B9 used in linux
+.zero 16*1                                                                                                                 # B5 unused in windows, used in linux
+.zero 16*1                                                                                                                 # B6 unused in windows, used in linux
+.zero 16*1                                                                                                                 # B7 unused in windows, used in linux
+.zero 16*1                                                                                                                 # B8 unused in windows, used in linux
+.zero 16*1                                                                                                                 # B9 adjust for non-syscall abi - unused in windows, used in linux
 and rsp, -16; .align 16, 0x90                                                                                              # BA stack must be 16 byte aligned on function entry
 .byte 0x90,0x90,0x90,0x90, 0x90,0x90,0x90,0x90, 0x90,0x90,0x90;jmp mzhdr;                                                  # BB backward (continue)
 pop rax; call rax; push rax; .align 16, 0x90                                                                               # BC call procedure
-push rbp; mov rbp, rsp ;          .align 16, 0x90                                                                          # BD deploy stack frame
+push rbp; mov rbp, rsp; push rcx; push rdx; push r8; push r9; .align 16, 0x90                                              # BD deploy stack frame
 pop rax; mov rsp, rbp; pop rbp; ret ; .align 16, 0x90                                                                      # BE return
 .byte 0x90,0x90,0x90,0x90, 0x90,0x90,0x90,0x90, 0x90,0x90,0x90;jmp mzhdr;                                                  # BF forward (break)
 .zero 16*1                                                                                                                 # C0
@@ -303,7 +342,8 @@ pop rcx; pop rax; cmp rax,rcx; setg al; movsx rax, al ; push rax; .align 16, 0x9
 pop rcx; pop rax; cmp rax,rcx; setge al; movsx rax, al ; push rax; .align 16, 0x90                                         # C9 >=
 pop rcx; pop rax; cmp rax,rcx; seta al; movsx rax, al ; push rax; .align 16, 0x90                                          # CA >u
 pop rcx; pop rax; cmp rax,rcx; setb al; movsx rax, al ; push rax; .align 16, 0x90                                          # CB <u
-.zero 16*2                                                                                                                 # CC-CD
+.zero 16*1                                                                                                                 # CC
+.zero 16*1                                                                                                                 # CD
 pop rcx; pop rax; cmp rax,rcx; sete al; movsx rax, al ; push rax; .align 16, 0x90                                          # CE ==
 .zero 16*1                                                                                                                 # CF
 .byte 0x90,0x90,0x90;pop rax; add rax, [rbx+0x76543210]; movzx rax, byte ptr [rax]; push rax;                              # D0 *+@u8:global
@@ -319,7 +359,9 @@ pop rax; shl eax, 3; add rax, [rbx+0x76543210]; mov rax,   qword ptr [rax]; push
 .byte 0x90,0x90,0x90,0x90; mov rcx, QWORD PTR [rbx+0x76543210]; pop rax; add rax, rcx; push rax                            # DA +global
 .byte 0x90,0x90,0x90,0x90; mov rcx, QWORD PTR [rbx+0x76543210]; pop rax; sub rax, rcx; push rax                            # DB -global
 .byte 0x90,0x90,0x90,0x90; mov rax, [rbx+0x76543210]; call rax; push rax; .byte 0x90,0x90;                                 # DC call global
-.zero 16*3                                                                                                                 # DD-DF
+.zero 16*1                                                                                                                 # DD
+.zero 16*1                                                                                                                 # DE
+.zero 16*1                                                                                                                 # DF
 .byte 0x90,0x90,0x90,0x90,0x58,0x48,0x05,0x2a,0x00,0x00,0x00; movzx rax, byte ptr [rax]; push rax;                         # E0 +@u8:imm  
 .byte 0x90,0x90,0x90,0x90,0x58,0x48,0x05,0x2a,0x00,0x00,0x00; movsx rax, byte ptr [rax]; push rax;                         # E1 +@i8:imm  
 .byte 0x90,0x90,0x90,0x90,0x58,0x48,0x05,0x2a,0x00,0x00,0x00; movzx rax, word ptr [rax]; push rax;                         # E2 +@u16:imm 
@@ -329,20 +371,23 @@ pop rax; shl eax, 3; add rax, [rbx+0x76543210]; mov rax,   qword ptr [rax]; push
 .byte 0x90,0x90,0x90,0x90,0x90,0x90;push 0x2a; .byte 0x90,0x90,0x90,0x90, 0x90,0x90,0x90,0x90;                             # E6 load imm
 .byte 0x90,0x90,0x90,0x90,0x90,0x90;push 42; pop rax; mov rsp, rbp; pop rbp; ret;.byte 0x90,0x90;                          # E7 ret imm
 .byte 0x90,0x90,0x90,0x90,0x58,0x48,0x05,0x2a,0x00,0x00,0x00; mov   rax, qword ptr [rax]; push rax;.byte 0x90;             # E8 +@u64:imm
-.byte 0x90,0x90; mov rax,QWORD PTR gs:0x60; push rax; .byte 0x90,0x90,0x90,0x90;                                           # E9 GS:imm
+.byte 0x90,0x90; mov rax,QWORD PTR gs:0x60; push rax; .byte 0x90,0x90,0x90,0x90;                                           # E9 GS:imm - used in get_kernel32()
 .byte 0x90,0x90,0x90; pop rax; add rax, 42; push rax; .byte 0x90,0x90,0x90,0x90,0x90,0x90,0x90;                            # EA +imm
 .byte 0x90,0x90,0x90; pop rax; sub rax, 42; push rax; .byte 0x90,0x90,0x90,0x90,0x90,0x90,0x90;                            # EB -imm
-.zero 16*4                                                                                                                 # EC-EF
+.zero 16*1                                                                                                                 # EC
+.zero 16*1                                                                                                                 # ED
+.byte 0x90,0x90,0x90,0x90; mov rax, [rbp+42]; push rax; .byte 0x90,0x90,0x90, 0x90,0x90,0x90,0x90;                         # EE
+.zero 16*1                                                                                                                 # EF
 .zero 16*16                                                                                                                # F0-FF
 
 hrmc_bytecode:
 ## int main()
 .byte 0x7E,0x0E, 0xBD,0x00 # 0E=&main; setup stack frame
-.byte 0xDC,0x02, 0xD9,0x12 # get_kernel32() =12
-.byte 0xD7,0x06, 0xD6,0x12, 0xDC,0x0A, 0xD9,0x16 # GetProcAddress(kernel32, "GetStdHandle") =16
-.byte 0xD7,0x0F, 0xD6,0x12, 0xDC,0x0A, 0xD9,0x1F # GetProcAddress(kernel32, "WriteFileA") =1F
-.byte 0xE6,0xF5, 0xB1,0x00, 0xDC,0x16, 0xD9,0x10 # GetStdHandle(-11) aka GetStdHandle(STD_OUTPUT_HANDLE) =10
-.byte 0xBA,0x00, 0xE6,0x00, 0xD7,0x01, 0xE6,0x0C, 0xD7,0x06, 0xD6,0x10, 0xB4,0x00, 0xDC,0x1F # WriteFileA(fout,msg,size,&written,0) aka WriteFileA(10,&06,12,&01,0)
+.byte 0xDC,0x02, 0x59,0xFF #, 0xD9,0x0B # get_kernel32() =$FF
+.byte 0xD7,0x06, 0x56,0xFF, 0xDC,0x0A, 0x59,0xFE # GetProcAddress(kernel32, "GetStdHandle") =$FE
+.byte 0xD7,0x0F, 0x56,0xFF, 0xDC,0x0A, 0x59,0xFD # GetProcAddress(kernel32, "WriteFile") =$FD
+.byte 0xE6,0xF5, 0xB1,0x00, 0x5C,0xFE, 0x59,0xFC # GetStdHandle(STD_OUTPUT_HANDLE) =$FC
+.byte 0xBA,0x00, 0xE6,0x00, 0xD7,0x01, 0xE6,0x0C, 0xD7,0x06, 0x56,0xFC, 0xB4,0x00, 0x5C,0xFD # WriteFile(fout,msg,size,&written,0)
 .byte 0xBE,0x00 # return
 
 ## void* get_kernel32()
@@ -355,9 +400,9 @@ hrmc_bytecode:
      .byte 0xD6,0x11, 0xEB,0x02, 0xD9,0x11 # @11 -2 =11
      .byte 0xE6,0x16, 0xD9,0x12 # 22 =12
      .byte 0x7E,0x72, 0xD6,0x12, 0xE6,0x00, 0xC9,0x00, 0xB0,0x72 # @12 0 >= ?
-          .byte 0xD6,0x1A, 0xDA,0x11, 0x12,0x00, 0xD9,0x13 # @1A +@11 @u16 =13
-          .byte 0xD7,0x03, 0xDA,0x12, 0x12,0x00, 0xD9,0x14 # &03 +@12 @u16 =14
-          .byte 0x7E,0x73, 0xD6,0x13, 0xD6,0x14, 0xC1,0x00, 0xD6,0x13, 0xD6,0x14, 0xEA,0x20, 0xC1,0x00, 0xA7,0x00, 0xB0,0x73 # @13 @14 != @13 @14 +0x20 != & ?
+          .byte 0xD6,0x1A, 0xDA,0x11, 0x62,0x00, 0xD9,0x13 # @1A +@11 @u16 =13
+          .byte 0xD7,0x03, 0xDA,0x12, 0x62,0x00, 0xD9,0x14 # &03 +@12 @u16 =14
+          .byte 0x7E,0x73, 0xD6,0x13, 0xD6,0x14, 0xC1,0x00, 0xD6,0x13, 0xD6,0x14, 0xEA,0x20, 0xC1,0x00, 0xAF,0x00, 0xB0,0x73 # @13 @14 != @13 @14 +0x20 != & ?
                .byte 0xBF,0x72 # break
           .byte 0x7F,0x73
           .byte 0xD6,0x11, 0xEB,0x02, 0xD9,0x11 # @11 -2 =11
@@ -367,7 +412,7 @@ hrmc_bytecode:
      .byte 0x7E,0x72, 0xD6,0x12, 0xE6,0x00, 0xC4,0x00, 0xB0,0x72 # @12 0 < ?
           .byte 0xD6,0x1B, 0xBE,0x00 # @1B return
      .byte 0x7F,0x72
-     .byte 0xD6,0x1D, 0x18,0x00, 0xD9,0x1D # @1D @u64 =1D
+     .byte 0xD6,0x1D, 0x68,0x00, 0xD9,0x1D # @1D @u64 =1D
      .byte 0xD6,0x1D, 0xE8,0x20, 0xD9,0x1B # @1D +@u64:0x20 =1B
      .byte 0xBB,0x71 # continue
 .byte 0x7F,0x71
@@ -397,231 +442,18 @@ hrmc_bytecode:
      .byte 0x7E,0x72, 0xD6,0x1C, 0xE6,0x00, 0xC7,0x00, 0xB0,0x72, 0xD6,0x11, 0xD9,0x10, 0x7F,0x72 # @1C 0 > ? @11 =10
      .byte 0x7E,0x72, 0xD6,0x1C, 0xE6,0x00, 0xC4,0x00, 0xB0,0x72, 0xD6,0x11, 0xD9,0x1F, 0x7F,0x72 # @1C 0 < ? @11 =1F
      .byte 0xD6,0x1F, 0xDA,0x10, 0xE6,0x01, 0xA9,0x00, 0xD9,0x11 # @1F @10 + 1 >> =11
-     .byte 0xD6,0x11, 0xD4,0x1A, 0x5A,0x02, 0xD9,0x10 # @11 *+@u32:1A +$02 =12
+     .byte 0xD6,0x11, 0xD4,0x1A, 0x5A,0x02, 0xD9,0x12 # @11 *+@u32:1A +$02 =12
      .byte 0xD6,0x12, 0x56,0x03, 0xDC,0x0C, 0xD9,0x1C # @12 $03 strcmp =1C
 .byte 0xD6,0x1C, 0xE6,0x00, 0xC1,0x00, 0xB0,0x71, 0xBB,0x71, 0x7F,0x71 # @1C 0 != ? continue }
 .byte 0x7E,0x71, 0xD6,0x11, 0xD4,0x1A, 0x5A,0x02, 0x56,0x03, 0xDC,0x0C, 0xE6,0x00, 0xC1,0x00, 0xB0,0x71, 0xE7,0x00, 0x7F,0x71 # index *+@u32:1A +$02 $03 strcmp 0 != ? return0
-.byte 0xD6,0x1E, 0xE4,0x24, 0x5A,0x02, 0xD9,0x17 # @1E +@u32:0x24 +$02 =17
+.byte 0xD6,0x1E, 0xE4,0x24, 0x5A,0x02, 0xD9,0x07 # @1E +@u32:0x24 +$02 =17
 .byte 0xD6,0x1E, 0xE4,0x1C, 0x5A,0x02, 0xD9,0x18 # @1E +@u32:0x1C +$02 =18
-.byte 0xD6,0x11, 0xD2,0x17, 0xD4,0x18, 0x5A,0x02, 0xBE,0x00 # @11 *+@u16:17 *+@u32:18 +$02 return
+.byte 0xD6,0x11, 0xD2,0x07, 0xD4,0x18, 0x5A,0x02, 0xBE,0x00 # @11 *+@u16:17 *+@u32:18 +$02 return
 .byte 0x00,0x00 # end compilation
 
 .fill 1024 - ($ - hrmc_bytecode), 1, 0x90
 hrmc_dest:
 .zero (1024<<4)
 
-/*
-
-TODO: explore the 16 bit compressed riscv and arm
-	also check out spir-v bytecode
-	maybe document them as well as java bytecode and wasm
-	and compare all them with hrmc
-
-TODO: update code to have more locals on the stack
-	make a way for other code to call into hrmc functions
-		needed for callbacks
-		maybe have it as a part of the stack frame setup op
-TODO: make compile into a callable function
-	ret instead of jmp hrmc_dest
-	load rsi and rdi from stack +0x08 and +0x10
-	jmp past the loading from stack for the entry point's first call to save on stack space
-TODO: open window
-	put pixels on the screen
-	draw text
-	make name table for core hrmc
-	add meta data to hrmc functions
-	make editor recognize the meta data and display the names of core hrmc and local names
-can do array indexing in 1 func if move back patching from -9 to -11
-TODO: fix these up and put in 5x
-nop; pop rax; mov rcx, [rbx+0x76543210]; movzx rax, word ptr [rax*2+rcx]; push rax;
-nop; pop rax; mov rcx, [rbx+0x76543210]; movsx rax, word ptr [rax*2+rcx]; push rax;
-nop; pop rax; mov rcx, [rbx+0x76543210]; mov eax, [rax*4+rcx]; push rax;
-nop; pop rax; mov rcx, [rbx+0x76543210]; movsx rax, dword ptr [rax*4+rcx]; push rax;
-nop; pop rax; mov rcx, [rbx+0x76543210]; mov rax, [rax*8+rcx]; push rax;
-
-range kinds of machine code contained within range - mnemonic reasoning
-00-0F are for meta data and common global pointers - kinda like a kernel's vector table
-10-1F are for local variables that you want a 0-F name for instead of using the stack
-20-2F can be conversions
-30-3F multiply-add funcs for easy array of struct access
-40-4F 4-wide 32-bit floating point vector operations
-50-5F instructions interacting with the Stack - 5 is like S
-60-6F load instructions - '6' is like '(' with a loop-in, straighten the loop-in to (- and angle the bow <- now it's an arrow
-70-7F tag/label instructions for fixing relative branch offsets - 7 is like T
-80-8F 8-wide 32-bit floating point vector operations
-90-9F store instructions - same mnemonic reasoning as 60-6F but -> as in -> mem for store to memory
-A0-AF 64-bit integer Arithmetic and bitwise operations
-B0-BF instructions related to Branching and complying with ABI calling convention stuff
-C0-CF both integer and floating point Comparison operations
-D0-DF instructions interacting with the lookup table - uses table entries as Data, hence D
-E0-EF instructions that use immediate values - E for EEEEmmediate - or as a rotated m for 2 m's in immediate
-F0-FF 32-bit Floating point operations
-
-the 2nd hexadecimal digit of the first byte follows some patterns
-0/1/2/3/4/5/8/F are for u8/i8/u16/i16/u32/i32/u64/f32 types
-ABED are + - * and /     B for suB and E for mul cuz E is like a rotated m
-D could be for double for f64 but idk do we really need doubles?
-6 and 9 are load and store
-7 for addr-of
-C for call/misc
-
-E6 for load imm
-E9 for load gs reg with offset (cuz store to imm doesn't make sense)
-E7 for return imm
-EC for ?
-
-ET for +@T
-DT for *+@T
-5T for *+@T
-
-accessing local/global primitive type arrays is easy with DT and 5T
-accessing struct members is easy with ET
-acessing array of structs.. how do
-	index * sizeof(S) + arr + member_offset @T
-	maybe a whole 'nother category for *sizeof(S)+
-	but only if S is a power of 2
-	idx *sizeof(S)+arr +@Tmem_off
-	like 380F would be *(1<<8)+table[0F]
-
-B0 for branch if tos is 0
-B1-8 can be the pop abi regs
-B9 for adjust abi regs for syscall (cuz linux syscalls abi is diff than linux lib abis)
-BA for adjust stack pre-call
-BB for back branch aka continue
-BC for call addr on tos
-BD for stack frame fixup on start of function  (TODO: see if there's a better spot/mnemonic for this)
-BE for ret
-BF for branch forward aka break
-
-
-
-
-
-
-
-
-
-to self-compile
-	do load main file from creb.c
-		implement file_read and file_write
-		call GetCommandLineA
-	read bytes, skip whitespace, skipline on #
-	file_write as name given on command line with .exe instead of .dmp
-
-to optimize
-	remove nops
-	remove push rax; pop rax; and pop rax; push rax;
-	reg alloc rsi,rdi,r8-r10
-		either reg alloc top 10 local vars or first 10 local vars
-		can say if an index is written to before reading it's local
-	stuff like mov rcx, [mem]; add rax, rcx; can be just add rax, [mem];
-	after shortening instructions, adjust rel jmp offsets
-		maybe just keep a list of splice meta-info
-		and patch branches from top to bottom
-			keeping track of the current splice meta-info index and cur accumulated addr diff
-
-3 steps to get 2 high level languages
-	1) mc -> hrbc (simplest implementation as possible)
-	2) hrmc -> pseudo judo (as expressive as possible)
-	3) pseudo judo -> hral (most control while staying expressive - basically just compile the asm comments from step 1)
-
-
-## textual hrmc (hrmc with a names-to-nums table)
-	entries < 256 are direct aliases for hrmc
-	>= 256 are user defined with 256 being main
-
-main
-	get_kernel32 =kernel32
-	"GetStdHandle" kernel32 GetProcAddress =GetStdHandle
-	"WriteFile" kernel32 GetProcAddress =WriteFile
-	( 0 &bytes_written 12 "Hello World" GetStdHandle ) WriteFile
-	return
-
-get_kernel32
-	GS:0x60 +@0x18 +@0x20 =node
-	node +@0x20 =module_base
-	{ module_base ?
-		node +0x38 @u16 =module_name_len
-		node +@0x40 =module_name
-		module_name_len -2 =i
-		22 =j
-		{ j 0 >= ?
-			module_name +i @u16 =char1
-			u"KERNEL32.DLL" +j @u16 =char2
-			{ char1 char2 != char1 char2 +0x20 != & ?
-				break2
-			}
-			i -2 =i
-			j -2 =j
-			continue
-		}
-		{ j 0 < ?
-			module_base return
-		}
-		node @ =node
-		node +@0x20 =module_name
-		continue
-	}
-	0 return
-
-strcmp s1 s2
-	{ s1 @u8 ? s2 @u8 ? s1 @u8 s2 @u8 == ?
-		s1 +1 =s1 s2 +1 =s2
-		continue
-	}
-	{ s1 @u8 s2 @u8 == ?
-		0 return
-	}
-	s1 @u8 s2 @u8 - return
-
-GetProcAddress module_base proc_name
-	module_base +0x3C @u32 +module_base =pe_hdr
-	pe_hdr +0x18 +0x70 @u32 +moudle_base =exports_table
-	exports_table +0x20 @u32 +module_base = names_table
-	0 =low
-	exports_table +0x18 @i32 =high
-	0 =index
-	0 =comparison
-	{
-		{ comparison 0 > ? index =low }
-		{ comparison 0 < ? index =high }
-		high low + 1 >> =index
-		index 2 << +names_table @u32 +module_base =cur_proc_name
-		cur_proc_name proc_name strcmp =comparison
-	comparison 0 != ? continue }
-	{ index 2 << +names_table @u32 +module_base proc_name strcmp 0 != ? 0 return }
-	exports_table +0x24 @u32 +module_base =ordinal_table
-	exports_table +0x1C @u32 +module_base =export_address_table
-	index 1 << +ordinal_table @u16 2 << +export_address_table @u32 +module_base return
-
-alternative if we had +@ and *+@
-GetProcAddress module_base proc_name
-	module_base +@u32:0x3C +module_base =pe_hdr
-	pe_hdr +0x18 +@u32:0x70 +moudle_base =exports_table
-	exports_table +@u32:0x20 +module_base = names_table
-	0 =low
-	exports_table +@i32:0x18 =high
-	0 =index
-	0 =comparison
-	{
-		{ comparison 0 > ? index =low }
-		{ comparison 0 < ? index =high }
-		high low + 1 >> =index
-		index *+@u32:names_table +module_base =cur_proc_name
-		cur_proc_name proc_name strcmp =comparison
-	comparison 0 != ? continue }
-	{ index *+@u32:names_table +module_base proc_name strcmp 0 != ? 0 return }
-	exports_table +@u32:0x24 +module_base =ordinal_table
-	exports_table +@u32:0x1C +module_base =export_address_table
-	index *+@u16:ordinal_table *+@u32:export_address_table +module_base return
-
-
-## PseudoJudo (C with optional syntax and hrmc stuff built in)
-	or maybe it's what I wrote in the hrmc compiler comments
-
-
-
-
-*/
 codesize = . - start
 filesize = . - mzhdr

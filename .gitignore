@@ -1,0 +1,11 @@
+*.exe
+a.out
+*.dll
+*.obj
+*.o
+*.so
+*.app
+*.bin
+*.vim
+*.json
+*node*
