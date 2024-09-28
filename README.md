@@ -42,7 +42,7 @@ The following is an explantion of the design.
 		- Ex just does a `+@` which is useful for accessing primitive struct members
 - 5x/Dx/Ex also use x like:
 	- A/B for + and - (A for Add, B for suB)
-	- 6/9 for load and store as u64
+	- 6/9 for load and store as u64 (storing to an imm makes no sense so E9 is load from gs reg cuz 9 looks like g in some fonts)
 - 5x/Dx both use x like:
 	- 7 for addr-of (& is on the 7 key)
 	- C for call
@@ -63,7 +63,7 @@ The following is an explantion of the design.
 		Windows x64 calling convention requires 0x20 bytes of shadow space, whatever that is.
 		So 0x20 + 0x10 for the first 2 slots = rbp+0x30 aka slot 6
 
-The mnemonic/reasoning for all the entries in the remaining op groups (Ax, Bx, Cx) is as follows:
+The mnemonic/reasoning for all the entries in the remaining op groups (Ax, Bx, Cx, 7x) is as follows:
 
 
 | byte1 |      what it does      |                     mnemonic/reasoning                     |
@@ -116,6 +116,8 @@ The mnemonic/reasoning for all the entries in the remaining op groups (Ax, Bx, C
 | CD    | unassigned             |                                                            |
 | CE    | equal to               | E for Equal to                                             |
 | CF    | unassigned             |                                                            |
+| 7E    | tag enscribe           | enscribe as in write addr into table                       |
+| 7F    | tag fixup              | fixup as in fixup rel offsets of branches to this          |
 
 - Why isn't load and store on 1x and 5x?
 
