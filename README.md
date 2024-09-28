@@ -44,7 +44,7 @@ The following is an explantion of the design.
 	- A/B for + and -
 	- 6/9 for load and store as u64
 - 5x/Dx both use x like:
-	- 7 for addr-of
+	- 7 for addr-of (& is on the 7 key)
 	- C for call
 
 - So `5502` does `*+@i32` with stack slot 2 aka `i32_array_passed_as_first_param[index_at_top_of_stack]`
