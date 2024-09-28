@@ -259,8 +259,8 @@ pop rax; shl eax, 3; add rax, [rbp+0x76543210]; mov rax,   qword ptr [rax]; push
 .byte 0x90,0x90,0x90,0x90; mov rcx, QWORD PTR [rbp+0x76543210]; pop rax; add rax, rcx; push rax                            # 5A +local
 .byte 0x90,0x90,0x90,0x90; mov rcx, QWORD PTR [rbp+0x76543210]; pop rax; sub rax, rcx; push rax                            # 5B -local
 .byte 0x90,0x90,0x90,0x90; mov rax, [rbp+0x76543210]; call rax; push rax; .byte 0x90,0x90;                                 # 5C call local
-.byte 0x90,0x90,0x90,0x90;sub rsp, 0x76543210; .byte 0x90,0x90,0x90,0x90,0x90;                                             # 5D deploy/reserve stack space
-.byte 0x90,0x90,0x90,0x90;sub rsp, 0x76543210; .byte 0x90,0x90,0x90,0x90,0x90;                                             # 5E deploy/reserve stack space
+.zero 16*1                                                                                                                 # 5D
+.byte 0x90,0x90,0x90,0x90;sub rsp, 0x76543210; .byte 0x90,0x90,0x90,0x90,0x90;                                             # 5E reserve stack space
 .zero 16*1                                                                                                                 # 5F
 pop rax; movzx rax, BYTE PTR [rax]; push rax   ; .align 16, 0x90                                                           # 60 @u8
 pop rax; movsx rax, BYTE PTR [rax]; push rax   ; .align 16, 0x90                                                           # 61 @i8

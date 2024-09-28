@@ -1,9 +1,6 @@
 # hrmc
 Human Readable Machine Code
 
-HRMC is not really a machine code (yet) - it's more of a bytecode.
-The bytecode is designed in such a way that the hexadecimal representation is a mnemonic for what it does.
-
 HRMC is mostly inspired by [David Smith's videos](https://www.youtube.com/@davidsmith7791/videos)
 and [Devine Lu Linvega's Strange Loop talk](https://www.youtube.com/watch?v=T3u7bGgVspM).
 Watching those videos will really put into perspective what the heck this thing is.
@@ -12,20 +9,26 @@ I want to stay at a machine code/bytecode level and see if I can make programmin
 so I can bootstrap up to a [Dion Systems](https://www.youtube.com/watch?v=GB_oTjVVgDc) type editor
 where the underlying structure is more AST-like than text-like.
 
+HRMC is not really a machine code (yet) - it's more of a bytecode.
+The bytecode is designed in such a way that the hexadecimal representation is a mnemonic for what it does.
+It's also an index into a lookup table of machine code that does the operation.
+So compiling is mostly just copying over the machine code at that index and patching immediate values.
+The following is an explantion of the design.
+
 | byte1 | kinds of data/machine code contained within range |                     mnemonic/reasoning                     | byte2  |
 | ----- | ------------------------------------------------- | ---------------------------------------------------------- | -----  |
 | 00-0F | meta data and common global pointers              | kinda like a kernel's vector table                         | ignored|
 | 10-1F | local variables - not needed anymore              | 1 like l as in local                                       | ignored|
 | 20-2F | [TODO] conversions                                | 2 like to as in convert to                                 | ignored|
-| 30-3F | [TODO] mul-add ops for accessing Array of Struct  | 3 like a rotated m as in mul                               | index  |
-| 40-4F | [TODO] 4-wide 32-bit floating point vector ops    | 4 like 4-wide floats                                       | ignored|
+| 30-3F | [TODO] mul-add ops for easy AoS access            | 3 like a rotated m as in mul                               | index  |
+| 40-4F | [TODO] 4-wide f32 vector ops                      | 4 like 4-wide floats                                       | ignored|
 | 50-5F | ops using the Stack Frame                         | 5 like S as in Stack                                       | index  |
 | 60-6F | load ops                                          | 6 looks kinda like (- which looks like <- as in reg <- mem | ignored|
-| 70-7F | tag/label ops for fixing relative branch offsets  | 7 like T as in Tag                                         | tag id |
-| 80-8F | 8-wide 32-bit floating point vector ops           | 8 like 8-wide floats                                       | ignored|
+| 70-7F | tag/label ops for fixing rel branch offsets       | 7 like T as in Tag                                         | tag id |
+| 80-8F | [TODO] 8-wide f32 vector ops                      | 8 like 8-wide floats                                       | ignored|
 | 90-9F | store ops                                         | 9 looks kinda like -) which looks like -> as in reg -> mem | ignored|
-| A0-AF | 64-bit integer Arithmetic and bitwise ops         | A for Arithmetic                                           | ignored|
-| B0-BF | ops related to Branching/calling and ABI stuff    | B for Branch                                               |[tag id]|
+| A0-AF | 64-bit integer Arithmetic and bitwise ops         | A for Arithmetic or for boolean Algebra                    | ignored|
+| B0-BF | ops for Branching/calling and ABI stuff           | B for Branch                                               |[tag id]|
 | C0-CF | Comparison operations                             | C for Compare                                              | ignored|
 | D0-DF | ops using the lookup table as Data                | D for Data as in it uses table entries as Data             | index  |
 | E0-EF | ops using immediate values                        | E for EEEEmmediate or as a rotated M as in iMMediate       | i8     |
@@ -47,7 +50,8 @@ where the underlying structure is more AST-like than text-like.
 - So `5502` does `*+@i32` with stack slot 2 aka `i32_array_passed_as_first_param[index_at_top_of_stack]`
 	- Stack slot 2 is the first param because 0 is rbp and 1 is the return address. -1 would be the first local variable.
 	- ... except when we want a function callable from external things using the C FFI.
-	- In this case, stack slot -1 is actually the first param, -2 is 2nd, -3 is 3rd, -4 is 4th, 6 is the 5th param, 7 is the 6th, etc.
+
+		In this case, stack slot -1 is actually the first param, -2 is 2nd, -3 is 3rd, -4 is 4th, 6 is the 5th param, 7 is the 6th, etc.
 
 	- Why the negative stack slots?
 
