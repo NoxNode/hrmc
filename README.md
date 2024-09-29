@@ -28,7 +28,7 @@ At the top of the files are shell commands to compile/inspect the HRMC compiler 
 My vim config has shortcuts to run a command at line 1-9 and put the output in the prev/new window.
 
 `ref_code` contains some C code that were old attemps at a simple C compiler that I often used as references.
-`link_win` in `min_common_win.c` is probably most helpful for understanding the whole `get_kernel32` `GetProcAddress` stuff works.
+`link_win` in `min_common_win.c` is probably most helpful for understanding the whole `get_kernel32` `GetProcAddress` stuff.
 
 ## Design
 
