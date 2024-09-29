@@ -1,6 +1,8 @@
-##cat hrmc.dmp | cut -d\# -f1 | xxd -p -r > hrmc.exe && ./hrmc.exe ; echo $?
+##cat hrmc.dmp | cut -d\# -f1 | xxd -p -r > hrmc.exe && ./hrmc.exe
+##mv hrmc.out hrmc.exe && ./hrmc.exe
 ##xxd hrmc.exe
-# hrmc.dmp is a compiler for hrmc written in an ascii hexdump of machine code
+##xxd hrmc.out
+# hrmc.dmp is a compiler for hrmc to Windows x64 written in an ascii hexdump
 ## DOS Header            field name in docs            notes (UNUSED means windows doesn't care what it is)
 4d 5a                    # e_magic                     MZ in ascii
 00 00                    # e_cblp                      UNUSED
@@ -95,91 +97,99 @@ F0 00                    # SizeOfOptionalHeader (including data directories)
 20 00 00 E0              # Characteristics (0x20=code, MSB_2=execute, MSB_4=read, MSB_8=write)
 
 ## Entry Point aka hrmc bytecode compiler
-48 8d 1d e9 00 00 00 	# lea    rbx,[rip+0xe9]        # 0x400260     #  400170:
-48 8d 35 e2 10 00 00 	# lea    rsi,[rip+0x10e2]        # 0x401260   #  400177:
-48 8d 3d db 14 00 00 	# lea    rdi,[rip+0x14db]        # 0x401660   #  40017e:
-0f b6 0e             	# movzx  ecx,BYTE PTR [rsi]                   #  400185:
-0f b6 56 01          	# movzx  edx,BYTE PTR [rsi+0x1]               #  400188:
-48 83 c6 02          	# add    rsi,0x2                              #  40018c:
-49 89 c8             	# mov    r8,rcx                               #  400190:
-49 c1 e0 04          	# shl    r8,0x4                               #  400193:
-49 89 d1             	# mov    r9,rdx                               #  400197:
-49 c1 e1 04          	# shl    r9,0x4                               #  40019a:
-49 89 ca             	# mov    r10,rcx                              #  40019e:
-49 81 e2 f0 00 00 00 	# and    r10,0xf0                             #  4001a1:
-66 42 0f 6f 04 03    	# movdqa xmm0,XMMWORD PTR [rbx+r8*1]          #  4001a8:
-66 0f 7f 07          	# movdqa XMMWORD PTR [rdi],xmm0               #  4001ae:
-48 83 c7 10          	# add    rdi,0x10                             #  4001b2:
-80 f9 00             	# cmp    cl,0x0                               #  4001b6:
-0f 84 a1 14 00 00    	# je     0x401660                             #  4001b9:
-49 81 fa d0 00 00 00 	# cmp    r10,0xd0                             #  4001bf:
-75 06                	# jne    0x4001ce                             #  4001c6:
-44 89 4f f7          	# mov    DWORD PTR [rdi-0x9],r9d              #  4001c8:
-eb b7                	# jmp    0x400185                             #  4001cc:
-49 81 fa e0 00 00 00 	# cmp    r10,0xe0                             #  4001ce:
-75 05                	# jne    0x4001dc                             #  4001d5:
-88 57 f7             	# mov    BYTE PTR [rdi-0x9],dl                #  4001d7:
-eb a9                	# jmp    0x400185                             #  4001da:
-80 f9 bb             	# cmp    cl,0xbb                              #  4001dc:
-75 0c                	# jne    0x4001ed                             #  4001df:
-4a 8b 04 0b          	# mov    rax,QWORD PTR [rbx+r9*1]             #  4001e1:
-48 29 f8             	# sub    rax,rdi                              #  4001e5:
-89 47 fc             	# mov    DWORD PTR [rdi-0x4],eax              #  4001e8:
-eb 98                	# jmp    0x400185                             #  4001eb:
-49 83 fa 50          	# cmp    r10,0x50                             #  4001ed:
-75 0b                	# jne    0x4001fe                             #  4001f1:
-0f be c2             	# movsx  eax,dl                               #  4001f3:
-c1 e0 03             	# shl    eax,0x3                              #  4001f6:
-89 47 f7             	# mov    DWORD PTR [rdi-0x9],eax              #  4001f9:
-eb 87                	# jmp    0x400185                             #  4001fc:
-49 83 fa 70          	# cmp    r10,0x70                             #  4001fe:
-75 81                	# jne    0x400185                             #  400202:
-80 f9 7e             	# cmp    cl,0x7e                              #  400204:
-75 04                	# jne    0x40020d                             #  400207:
-4a 89 3c 0b          	# mov    QWORD PTR [rbx+r9*1],rdi             #  400209:
-80 f9 7f             	# cmp    cl,0x7f                              #  40020d:
-0f 85 6f ff ff ff    	# jne    0x400185                             #  400210:
-4c 8d 5e fe          	# lea    r11,[rsi-0x2]                        #  400216:
-49 89 fc             	# mov    r12,rdi                              #  40021a:
-49 89 d5             	# mov    r13,rdx                              #  40021d:
-49 83 eb 02          	# sub    r11,0x2                              #  400220:
-41 8a 0b             	# mov    cl,BYTE PTR [r11]                    #  400224:
-41 8a 53 01          	# mov    dl,BYTE PTR [r11+0x1]                #  400227:
-49 83 ec 10          	# sub    r12,0x10                             #  40022b:
-4c 39 ea             	# cmp    rdx,r13                              #  40022f:
-75 ec                	# jne    0x400220                             #  400232:
-80 f9 bf             	# cmp    cl,0xbf                              #  400234:
-74 05                	# je     0x40023e                             #  400237:
-80 f9 b0             	# cmp    cl,0xb0                              #  400239:
-75 0b                	# jne    0x400249                             #  40023c:
-48 89 f8             	# mov    rax,rdi                              #  40023e:
-4c 29 e0             	# sub    rax,r12                              #  400241:
-41 89 44 24 fc       	# mov    DWORD PTR [r12-0x4],eax              #  400244:
-80 f9 7e             	# cmp    cl,0x7e                              #  400249:
-75 d2                	# jne    0x400220                             #  40024c:
-e9 32 ff ff ff       	# jmp    0x400185                             #  40024e:
+48 8d 1d f9 00 00 00 	# lea    rbx,[rip+0xf9]        # 0x400270   400170:
+48 8d 35 f2 10 00 00 	# lea    rsi,[rip+0x10f2]      # 0x401270   400177:
+48 8d 3d eb 14 00 00 	# lea    rdi,[rip+0x14eb]      # 0x401670   40017e:
+57                   	# push   rdi                                400185:
+56                   	# push   rsi                                400186:
+53                   	# push   rbx                                400187:
+e8 09 00 00 00       	# call   0x400196                           400188:
+48 83 c4 18          	# add    rsp,0x18                           40018d:
+e9 da 14 00 00       	# jmp    0x401670                           400191:
+48 8b 5c 24 08       	# mov    rbx,QWORD PTR [rsp+0x8]            400196: <- addr of compile
+48 8b 74 24 10       	# mov    rsi,QWORD PTR [rsp+0x10]           40019b:
+48 8b 7c 24 18       	# mov    rdi,QWORD PTR [rsp+0x18]           4001a0:
+0f b6 0e             	# movzx  ecx,BYTE PTR [rsi]                 4001a5:
+0f b6 56 01          	# movzx  edx,BYTE PTR [rsi+0x1]             4001a8:
+48 83 c6 02          	# add    rsi,0x2                            4001ac:
+49 89 c8             	# mov    r8,rcx                             4001b0:
+49 c1 e0 04          	# shl    r8,0x4                             4001b3:
+49 89 d1             	# mov    r9,rdx                             4001b7:
+49 c1 e1 04          	# shl    r9,0x4                             4001ba:
+49 89 ca             	# mov    r10,rcx                            4001be:
+49 81 e2 f0 00 00 00 	# and    r10,0xf0                           4001c1:
+66 42 0f 6f 04 03    	# movdqa xmm0,XMMWORD PTR [rbx+r8*1]        4001c8:
+66 0f 7f 07          	# movdqa XMMWORD PTR [rdi],xmm0             4001ce:
+48 83 c7 10          	# add    rdi,0x10                           4001d2:
+80 f9 00             	# cmp    cl,0x0                             4001d6:
+75 01                	# jne    0x4001dc                           4001d9:
+c3                   	# ret                                       4001db:
+49 81 fa d0 00 00 00 	# cmp    r10,0xd0                           4001dc:
+75 06                	# jne    0x4001eb                           4001e3:
+44 89 4f f7          	# mov    DWORD PTR [rdi-0x9],r9d            4001e5:
+eb ba                	# jmp    0x4001a5                           4001e9:
+49 81 fa e0 00 00 00 	# cmp    r10,0xe0                           4001eb:
+75 05                	# jne    0x4001f9                           4001f2:
+88 57 f7             	# mov    BYTE PTR [rdi-0x9],dl              4001f4:
+eb ac                	# jmp    0x4001a5                           4001f7:
+80 f9 bb             	# cmp    cl,0xbb                            4001f9:
+75 0c                	# jne    0x40020a                           4001fc:
+4a 8b 04 0b          	# mov    rax,QWORD PTR [rbx+r9*1]           4001fe:
+48 29 f8             	# sub    rax,rdi                            400202:
+89 47 fc             	# mov    DWORD PTR [rdi-0x4],eax            400205:
+eb 9b                	# jmp    0x4001a5                           400208:
+49 83 fa 50          	# cmp    r10,0x50                           40020a:
+75 0b                	# jne    0x40021b                           40020e:
+0f be c2             	# movsx  eax,dl                             400210:
+c1 e0 03             	# shl    eax,0x3                            400213:
+89 47 f7             	# mov    DWORD PTR [rdi-0x9],eax            400216:
+eb 8a                	# jmp    0x4001a5                           400219:
+49 83 fa 70          	# cmp    r10,0x70                           40021b:
+75 84                	# jne    0x4001a5                           40021f:
+80 f9 7e             	# cmp    cl,0x7e                            400221:
+75 04                	# jne    0x40022a                           400224:
+4a 89 3c 0b          	# mov    QWORD PTR [rbx+r9*1],rdi           400226:
+80 f9 7f             	# cmp    cl,0x7f                            40022a:
+0f 85 72 ff ff ff    	# jne    0x4001a5                           40022d:
+4c 8d 5e fe          	# lea    r11,[rsi-0x2]                      400233:
+49 89 fc             	# mov    r12,rdi                            400237:
+49 89 d5             	# mov    r13,rdx                            40023a:
+49 83 eb 02          	# sub    r11,0x2                            40023d:
+41 8a 0b             	# mov    cl,BYTE PTR [r11]                  400241:
+41 8a 53 01          	# mov    dl,BYTE PTR [r11+0x1]              400244:
+49 83 ec 10          	# sub    r12,0x10                           400248:
+4c 39 ea             	# cmp    rdx,r13                            40024c:
+75 ec                	# jne    0x40023d                           40024f:
+80 f9 bf             	# cmp    cl,0xbf                            400251:
+74 05                	# je     0x40025b                           400254:
+80 f9 b0             	# cmp    cl,0xb0                            400256:
+75 0b                	# jne    0x400266                           400259:
+48 89 f8             	# mov    rax,rdi                            40025b:
+4c 29 e0             	# sub    rax,r12                            40025e:
+41 89 44 24 fc       	# mov    DWORD PTR [r12-0x4],eax            400261:
+80 f9 7e             	# cmp    cl,0x7e                            400266:
+75 d2                	# jne    0x40023d                           400269:
+e9 35 ff ff ff       	# jmp    0x4001a5                           40026b:
 
-# 400253
-90 0000 0000 0000 0000 0000 0000
-# 400260
+# 400270
 
 # hrmc table
 0000 0000 0000 0000 0000 0000 0000 0000 # 00
-0000 0000 0000 0000 0000 0000 0000 0000 # 01
-0000 0000 0000 0000 0000 0000 0000 0000 # 02 get_kernel32
-4b00 4500 5200 4e00 4500 4c00 3300 3200 # 03 kernel32 unicode string
-2e00 4400 4c00 4c00 0000 0000 0000 0000 # 04 kernel32 unicode string continued
-0000 0000 0000 0000 0000 0000 0000 0000 # 05
-4765 7453 7464 4861 6e64 6c65 0000 0000 # 06 "GetStdHandle"
-0000 0000 0000 0000 0000 0000 0000 0000 # 07
-0000 0000 0000 0000 0000 0000 0000 0000 # 08
-0000 0000 0000 0000 0000 0000 0000 0000 # 09
+436C 6F73 6548 616E 646C 6500 0000 0000 # 01 "CloseHandle" then actual CloseHandle
+0000 0000 0000 0000 0000 0000 0000 0000 # 02 get_kernel32 then actual kernel32
+4b00 4500 5200 4e00 4500 4c00 3300 3200 # 03 KERNEL32.DLL unicode string
+2e00 4400 4c00 4c00 0000 0000 0000 0000 # 04 KERNEL32.DLL unicode string continued
+0000 0000 0000 0000 0000 0000 0000 0000 # 05 strcmp
+4765 7453 7464 4861 6e64 6c65 0000 0000 # 06 "GetStdHandle" then actual GetStdHandle
+5669 7274 7561 6C41 6C6C 6F63 0000 0000 # 07 "VirtualAlloc" then actual VirtualAlloc
+4765 7446 696C 6541 7474 7269 6275 7465 # 08 "GetFileAttributesExA" then actual GetFileAttributesExA
+7345 7841 0000 0000 0000 0000 0000 0000 # 09 "GetFileAttributesExA" continued
 0000 0000 0000 0000 0000 0000 0000 0000 # 0A GetProcAddress
 0000 0000 0000 0000 0000 0000 0000 0000 # 0B
-0000 0000 0000 0000 0000 0000 0000 0000 # 0C strcmp
-0000 0000 0000 0000 0000 0000 0000 0000 # 0D
-0000 0000 0000 0000 0000 0000 0000 0000 # 0E main
-5772 6974 6546 696c 6500 0000 0000 0000 # 0F "WriteFile"
+4372 6561 7465 4669 6C65 4100 0000 0000 # 0C "CreateFileA" then actual CreateFileA
+6872 6D63 2E64 6D70 0000 0000 0000 0000 # 0D "hrmc.dmp" then contents of hrmc.dmp
+5265 6164 4669 6c65 0000 0000 0000 0000 # 0E "ReadFile" then actual ReadFile
+5772 6974 6546 696c 6500 0000 0000 0000 # 0F "WriteFile" then actual WriteFile
 0000 0000 0000 0000 0000 0000 0000 0000 # 10
 0000 0000 0000 0000 0000 0000 0000 0000 # 11
 0000 0000 0000 0000 0000 0000 0000 0000 # 12
@@ -308,16 +318,16 @@ e9 32 ff ff ff       	# jmp    0x400185                             #  40024e:
 0000 0000 0000 0000 0000 0000 0000 0000 # 8D
 0000 0000 0000 0000 0000 0000 0000 0000 # 8E
 0000 0000 0000 0000 0000 0000 0000 0000 # 8F
-5888 0066 662e 0f1f 8400 0000 0000 6690 # 90 =u8
-5888 0066 662e 0f1f 8400 0000 0000 6690 # 91 =i8
-5866 8900 6666 2e0f 1f84 0000 0000 0090 # 92 =u16
-5866 8900 6666 2e0f 1f84 0000 0000 0090 # 93 =i16
-5889 0066 662e 0f1f 8400 0000 0000 6690 # 94 =u32
-5889 0066 662e 0f1f 8400 0000 0000 6690 # 95 =i32
+5958 8801 6666 2E0F 1F84 0000 0000 0090 # 90 =u8
+5958 8801 6666 2E0F 1F84 0000 0000 0090 # 91 =i8
+5958 6689 0166 662E 0F1F 8400 0000 0000 # 92 =u16
+5958 6689 0166 662E 0F1F 8400 0000 0000 # 93 =i16
+5958 8901 6666 2E0F 1F84 0000 0000 0090 # 94 =u32
+5958 8901 6666 2E0F 1F84 0000 0000 0090 # 95 =i32
 0000 0000 0000 0000 0000 0000 0000 0000 # 96
 0000 0000 0000 0000 0000 0000 0000 0000 # 97
-5848 8900 6666 2e0f 1f84 0000 0000 0090 # 98 =u64
-5848 8900 6666 2e0f 1f84 0000 0000 0090 # 99 =i64
+5958 4889 0166 662E 0F1F 8400 0000 0000 # 98 =u64
+5958 4889 0166 662E 0F1F 8400 0000 0000 # 99 =i64
 0000 0000 0000 0000 0000 0000 0000 0000 # 9A
 0000 0000 0000 0000 0000 0000 0000 0000 # 9B
 0000 0000 0000 0000 0000 0000 0000 0000 # 9C
@@ -422,44 +432,80 @@ e9 32 ff ff ff       	# jmp    0x400185                             #  40024e:
 0000 0000 0000 0000 0000 0000 0000 0000 # FF
 
 ## int main()
-7E0E BD00 # 0E=&main; setup stack frame
-DC02 59FF # D90B # get_kernel32() =$FF
-D706 56FF DC0A 59FE # GetProcAddress(kernel32, "GetStdHandle") =$FE
-D70F 56FF DC0A 59FD # GetProcAddress(kernel32, "WriteFile") =$FD
-E6F5 B100 5CFE 59FC # GetStdHandle(STD_OUTPUT_HANDLE) =$FC
-BA00 E600 D701 E60C D706 56FC B400 5CFD # WriteFile(fout,msg,size,&written,0)
+BD00 # setup stack frame
+DC02 D902 5E10 # get_kernel32() =02
+D706 D602 DC0A D906 # GetProcAddress(kernel32, "GetStdHandle") =06
+D70F D602 DC0A D90F # GetProcAddress(kernel32, "WriteFile") =0F
+D70E D602 DC0A D90E # GetProcAddress(kernel32, "ReadFile") =0E
+D70C D602 DC0A D90C # GetProcAddress(kernel32, "CreateFileA") =0C
+#D701 D602 DC0A D901 # GetProcAddress(kernel32, "CloseHandle") =01
+D707 D602 DC0A D907 # GetProcAddress(kernel32, "VirtualAlloc") =07
+#D708 D602 DC0A D908 # GetProcAddress(kernel32, "GetFileAttributesExA") =08
+E6F5 B100 DC06 59FF # GetStdHandle(STD_OUTPUT_HANDLE) =$FF
+#BA00 E600 D701 E60C D706 56FF B400 DC0F # WriteFile(fout,msg,size,&written,0)
+BA00 E640 E630 E608 A400 E640 E610 A400 E600 B400 DC07 59FB # VirtualAlloc(0, 0x400000, MEM_RESERVE|MEM_COMMIT, PAGE_EXECUTE_READWRITE) =$FB
+BA00 E600 E600 E603 E600 E601 E608 E61C A400 D70D B400 DC0C 59FD # CreateFileA("hrmc.dmp", GENERIC_READ, FILE_READ_SHARE, 0, OPEN_EXISTING, 0, 0) =$FD
+BA00 E600 57FC E640 E610 A400 56FB 56FD B400 DC0E # ReadFile(fin, inbuf, insize, &bytes_read, 0)
+#BA00 E600 57FA 56FC 56FB 56FF B400 DC0F # WriteFile(fout,msg,size,&written,0)
+BA00 E640 E630 E608 A400 E640 E610 A400 E600 B400 DC07 59F0 # VirtualAlloc(0, 0x400000, MEM_RESERVE|MEM_COMMIT, PAGE_EXECUTE_READWRITE) =$F0
+E600 59F1 # i=0
+E600 59F2 # j=0
+7E71 56F1 56FC C400 B071 # while i < bytes_read
+     7E73 56F1 50FB E623 CE00 B073 # i *+@u8:inbuf 23 == ? (aka skip # comments)
+          7E74 56F1 EA01 59F1 56F1 50FB E60A C100 B074 BB74 7F74 # do { i += 1 } while( i *+@u8:inbuf 0x10 != )
+     7F73
+     7E73 56F1 50FB E630 C400 B073 56F1 EA01 59F1 BB71 7F73 # i *+@u8:inbuf 0x30 < ? i += 1 ; continue (aka skip whitespace)
+     7E72
+          7E73 56F1 50FB E661 C900 B073 56F1 50FB E657 AB00 E604 A400 59F4 BF72 7F73 # i *+@u8:inbuf 61 >= ? i *+@u8:inbuf 51 - 4 << =$F4 ; break
+          7E73 56F1 50FB E641 C900 B073 56F1 50FB E637 AB00 E604 A400 59F4 BF72 7F73 # i *+@u8:inbuf 41 >= ? i *+@u8:inbuf 37 - 4 << =$F4 ; break
+          56F1 50FB E630 AB00 E604 A400 59F4 # i *+@u8:inbuf 30 - 4 << =$f4
+     7F72
+     56F1 EA01 59F1 # i += 1
+     7E72
+          7E73 56F1 50FB E661 C900 B073 56F1 50FB E657 AB00 56F4 A000 56F0 5AF2 9000 BF72 7F73 # i *+@u8:inbuf 61 >= ? i *+@u8:inbuf 57 - $F4 | outbuf +j =u8 ; break
+          7E73 56F1 50FB E641 C900 B073 56F1 50FB E637 AB00 56F4 A000 56F0 5AF2 9000 BF72 7F73 # i *+@u8:inbuf 41 >= ? i *+@u8:inbuf 37 - $F4 | outbuf +j =u8 ; break
+          56F1 50FB E630 AB00 56F4 A000 56F0 5AF2 9000 # i *+@u8:inbuf 30 - $F4 | outbuf +j =u8
+     7F72
+     56F2 EA01 59F2 # j += 1
+     56F1 EA01 59F1 # i += 1
+     BB71
+7F71
+#E665 D70D EA05 9000 E678 D70D EA06 9000 E665 D70D EA07 9000 # change "hrmc.dmp" to "hrmc.exe"
+E66F D70D EA05 9000 E675 D70D EA06 9000 E674 D70D EA07 9000 # change "hrmc.dmp" to "hrmc.out"
+BA00 E600 E600 E602 E600 E600 E604 E61C A400 D70D B400 DC0C 59F5 # CreateFileA(filename, GENERIC_WRITE, 0, 0, CREATE_ALWAYS, 0, 0) =F5
+BA00 E600 57FA 56F2 56F0 56F5 B400 DC0F # WriteFile(fout,msg,size,&written,0)
 BE00 # return
 
 ## void* get_kernel32()
-7E02 BD00 # 02=&get_kernel32; setup stack frame
-E960 E818 E820 D91D # @gs:60 +@u64:18 +@u64:20 =1D
-D61D E820 D91B # @1D +@u64:20 =1B
-7E71 D61B B071 # @1B ?
-     D61D E238 D911 # @1D +@u16:38 =11
-     D61D E840 D91A # @1D +@u64:40 =1A
-     D611 EB02 D911 # @11 -2 =11
-     E616 D912 # 22 =12
-     7E72 D612 E600 C900 B072 # @12 0 >= ?
-          D61A DA11 6200 D913 # @1A +@11 @u16 =13
-          D703 DA12 6200 D914 # &03 +@12 @u16 =14
-          7E73 D613 D614 C100 D613 D614 EA20 C100 AF00 B073 # @13 @14 != @13 @14 +20 != & ?
+7E02 BD00 5E10 # 02=&get_kernel32; setup stack frame; reserve 16 stack slots for locals
+E960 E818 E820 59FD # @gs:60 +@u64:18 +@u64:20 =FD
+56FD E820 59FB # @FD +@u64:20 =FB
+7E71 56FB B071 # @FB ?
+     56FD E238 59F1 # @FD +@u16:38 =F1
+     56FD E840 59FA # @FD +@u64:40 =FA
+     56F1 EB02 59F1 # @F1 -2 =F1
+     E616 59F2 # 22 =F2
+     7E72 56F2 E600 C900 B072 # @F2 0 >= ?
+          56FA 5AF1 6200 59F3 # @FA +@F1 @u16 =F3
+          D703 5AF2 6200 59F4 # &03 +@F2 @u16 =F4
+          7E73 56F3 56F4 C100 56F3 56F4 EA20 C100 AF00 B073 # @F3 @F4 != @F3 @F4 +20 != & ?
                BF72 # break
           7F73
-          D611 EB02 D911 # @11 -2 =11
-          D612 EB02 D912 # @12 -2 =12
+          56F1 EB02 59F1 # @F1 -2 =F1
+          56F2 EB02 59F2 # @F2 -2 =F2
           BB72 # continue
      7F72
-     7E72 D612 E600 C400 B072 # @12 0 < ?
-          D61B BE00 # @1B return
+     7E72 56F2 E600 C400 B072 # @F2 0 < ?
+          56FB BE00 # @FB return
      7F72
-     D61D 6800 D91D # @1D @u64 =1D
-     D61D E820 D91B # @1D +@u64:20 =1B
+     56FD 6800 59FD # @FD @u64 =FD
+     56FD E820 59FB # @FD +@u64:20 =FB
      BB71 # continue
 7F71
 E700 # return0
 
 ## int strcmp(char* s1 char* s2)
-7E0C BD00 # 0C=&strcmp; setup stack frame
+7E05 BD00 # 05=&strcmp; setup stack frame
 7E71 5602 6000 B071 5603 6000 B071 5602 6000 5603 6000 CE00 B071 # $02 @u8 ? $03 @u8 ? $02 @u8 $03 @u8 == ?
      5602 EA01 5902 5603 EA01 5903 # $02 +1 =$02 $03 +1 =$03
      BB71 # continue
@@ -470,24 +516,24 @@ E700 # return0
 5602 6000 5603 6000 AB00 BE00 # $02 @u8 $03 @u8 - return
 
 ## void* GetProcAddress(void* handle char* proc_name)
-7E0A BD00 # 0A=&GetProcAddress; setup stack frame
-5602 E43C 5A02 D91D # $02 +@u32:3C +$02 =1D
-D61D EA18 E470 5A02 D91E # @1D +18 +@u32:70 +$02 =1E
-D61E E420 5A02 D91A # @1E +@u32:20 +$02 =1A
-E600 D910 # 0 =10
-D61E E518 D91F # @1E +@i32:18 =1F
-E600 D911 # 0 =11
-E600 D91C # 0 =1C
+7E0A BD00 5E10 # 0A=&GetProcAddress; setup stack frame; reserve 16 stack slots for locals
+5602 E43C 5A02 59FD # $02 +@u32:3C +$02 =FD
+56FD EA18 E470 5A02 59FE # @FD +18 +@u32:70 +$02 =FE
+56FE E420 5A02 59FA # @FE +@u32:20 +$02 =FA
+E600 59F0 # 0 =F0
+56FE E518 59FF # @FE +@i32:18 =FF
+E600 59F1 # 0 =F1
+E600 59FC # 0 =FC
 7E71 # do {
-     7E72 D61C E600 C700 B072 D611 D910 7F72 # @1C 0 > ? @11 =10
-     7E72 D61C E600 C400 B072 D611 D91F 7F72 # @1C 0 < ? @11 =1F
-     D61F DA10 E601 A900 D911 # @1F @10 + 1 >> =11
-     D611 D41A 5A02 D912 # @11 *+@u32:1A +$02 =12
-     D612 5603 DC0C D91C # @12 $03 strcmp =1C
-D61C E600 C100 B071 BB71 7F71 # @1C 0 != ? continue }
-7E71 D611 D41A 5A02 5603 DC0C E600 C100 B071 E700 7F71 # index *+@u32:1A +$02 $03 strcmp 0 != ? return0
-D61E E424 5A02 D907 # @1E +@u32:24 +$02 =17
-D61E E41C 5A02 D918 # @1E +@u32:1C +$02 =18
-D611 D207 D418 5A02 BE00 # @11 *+@u16:17 *+@u32:18 +$02 return
+     7E72 56FC E600 C700 B072 56F1 59F0 7F72 # @FC 0 > ? @F1 =F0
+     7E72 56FC E600 C400 B072 56F1 59FF 7F72 # @FC 0 < ? @F1 =FF
+     56FF 5AF0 E601 A900 59F1 # @FF @F0 + 1 >> =F1
+     56F1 54FA 5A02 59F2 # @F1 *+@u32:FA +$02 =F2
+     56F2 5603 DC05 59FC # @F2 $03 strcmp =FC
+56FC E600 C100 B071 BB71 7F71 # @FC 0 != ? continue }
+7E71 56F1 54FA 5A02 5603 DC05 E600 C100 B071 E700 7F71 # index *+@u32:FA +$02 $03 strcmp 0 != ? return0
+56FE E424 5A02 59F7 # @FE +@u32:24 +$02 =F7
+56FE E41C 5A02 59F8 # @FE +@u32:1C +$02 =F8
+56F1 52F7 54F8 5A02 BE00 # @F1 *+@u16:F7 *+@u32:F8 +$02 return
 0000 # end compilation
 

@@ -1,38 +1,48 @@
-# hrmc
+# HRMC
 Human Readable Machine Code
 
-HRMC is mostly inspired by [David Smith's videos](https://www.youtube.com/@davidsmith7791/videos)
-and [Devine Lu Linvega's Strange Loop talk](https://www.youtube.com/watch?v=T3u7bGgVspM).
-Watching those videos will really put into perspective what the heck this thing is.
-The main thing that makes HRMC stand out is instead of going straight to parsing a textual language,
-I want to stay at a machine code/bytecode level and see if I can make programming at that level more ergonomic
-so I can bootstrap up to a [Dion Systems](https://www.youtube.com/watch?v=GB_oTjVVgDc) type editor
-where the underlying structure is more AST-like than text-like.
+## Motivation
 
-HRMC is not really a machine code (yet) - it's more of a bytecode.
+HRMC is mostly inspired by [David Smith's SmithForth](https://www.youtube.com/watch?v=9MSJGzYELBA)
+and [Devine Lu Linvega's Strange Loop talk](https://www.youtube.com/watch?v=T3u7bGgVspM).
+What differentiates HRMC from those 2 systems is I don't embrace the Forth way of doing things.
+Coming from C, I found stack manipulation stuff like dup, drop, swap to be painful to work with.
+I just want to make C-like statements in an ergonomic RPN bytecode and render it however I want.
+My goal is to use HRMC to bootstrap up to an editor with ideas from
+[Learnable Programming](https://worrydream.com/LearnableProgramming/),
+[Moldable Development](https://youtu.be/Pot9GnHFOVU?t=706),
+[Acme](https://youtu.be/dP1xVpMPn8M?t=285),
+[Cedar](https://youtu.be/z_dt7NG38V4?t=2409),
+[The Mother of All Demos](https://youtu.be/UhpTiWyVa6k?t=1292),
+[Tomorrow Corp Tech](https://youtu.be/72y2EC5fkcE?t=453),
+and [Dion Systems](https://youtu.be/GB_oTjVVgDc?t=1709).
+
+## Design
+
+HRMC is not really a machine code (yet) - it's more of a bytecode, and it always has a parameter byte even if ignored.
 The bytecode is designed in such a way that the hexadecimal representation is a mnemonic for what it does.
 It's also an index into a lookup table of machine code that does the operation.
 So compiling is mostly just copying over the machine code at that index and patching immediate values.
 The following is an explantion of the design.
 
-| byte1 | kinds of data/machine code contained within range |                     mnemonic/reasoning                     | byte2  |
-| ----- | ------------------------------------------------- | ---------------------------------------------------------- | -----  |
-| 00-0F | meta data and common global pointers              | kinda like a kernel's vector table                         | ignored|
-| 10-1F | local variables - not needed anymore              | 1 like l as in local                                       | ignored|
-| 20-2F | [TODO] conversions                                | 2 like to as in convert to                                 | ignored|
-| 30-3F | [TODO] mul-add ops for easy AoS access            | 3 like a rotated m as in mul                               | index  |
-| 40-4F | [TODO] 4-wide f32 vector ops                      | 4 like 4-wide floats                                       | ignored|
-| 50-5F | ops using the Stack Frame                         | 5 like S as in Stack                                       | index  |
-| 60-6F | load ops                                          | 6 looks kinda like (- which looks like <- as in reg <- mem | ignored|
-| 70-7F | tag/label ops for fixing rel branch offsets       | 7 like T as in Tag                                         | tag id |
-| 80-8F | [TODO] 8-wide f32 vector ops                      | 8 like 8-wide floats                                       | ignored|
-| 90-9F | store ops                                         | 9 looks kinda like -) which looks like -> as in reg -> mem | ignored|
-| A0-AF | 64-bit integer Arithmetic and bitwise ops         | A for Arithmetic or for boolean Algebra                    | ignored|
-| B0-BF | ops for Branching/calling and ABI stuff           | B for Branch                                               |[tag id]|
-| C0-CF | Comparison operations                             | C for Compare                                              | ignored|
-| D0-DF | ops using the lookup table as Data                | D for Data as in it uses table entries as Data             | index  |
-| E0-EF | ops using immediate values                        | E for EEEEmmediate or as a rotated M as in iMMediate       | i8     |
-| F0-FF | [TODO] Floating point ops                         | F for float                                                | ignored|
+| op |  kinds of data/machine code in op range   |               mnemonic/reasoning               | param  |
+| -- | ----------------------------------------- | ---------------------------------------------- | ------ |
+| 0x | meta data and common global pointers      | kinda like a kernel's vector table             |    -   |
+| 1x | local variables - not needed anymore      | 1 like l as in local                           |    -   |
+| 2x | [TODO] conversions                        | 2 like to as in convert to                     |    -   |
+| 3x | [TODO] mul-add ops for easy AoS access    | 3 like a rotated m as in mul                   | index  |
+| 4x | [TODO] 4-wide f32 vector ops              | 4 like 4-wide floats                           |    -   |
+| 5x | ops using the Stack Frame                 | 5 like S as in Stack                           | index  |
+| 6x | load ops                                  | 6 looks like (- which is like <- in reg <- mem |    -   |
+| 7x | tag/label ops for fixing relative offsets | 7 like T as in Tag                             | tag_id |
+| 8x | [TODO] 8-wide f32 vector ops              | 8 like 8-wide floats                           |    -   |
+| 9x | store ops                                 | 9 looks like -) which is like -> in reg -> mem |    -   |
+| Ax | 64-bit integer Arithmetic and bitwise ops | A for Arithmetic or for boolean Algebra        |    -   |
+| Bx | ops for Branching/calling and ABI stuff   | B for Branch                                   |[tag_id]|
+| Cx | Comparison operations                     | C for Compare                                  |    -   |
+| Dx | ops using the lookup table as Data        | D for Data as in it uses table entries as Data | index  |
+| Ex | ops using immediate values                | E for EEEEmmediate or a rotated M in iMMediate | i8     |
+| Fx | [TODO] Floating point ops                 | F for float                                    |    -   |
 
 - 5x/6x/9x/Dx/Ex use the same x for dealing with primitive types like so:
 	- 0/1/2/3/4/5/8/D/F for u8/i8/u16/i16/u32/i32/u64/f64/f32
@@ -40,12 +50,12 @@ The following is an explantion of the design.
 		- 6x/9x just load or store that type (signed and unsigned store is the same)
 		- 5x/Dx do a `*+@` which is useful for subscripting primitive arrays
 		- Ex just does a `+@` which is useful for accessing primitive struct members
-- 5x/Dx/Ex also use x like:
+- 5x/Dx/Ex also use x like so:
 	- A/B for + and - (A for Add, B for suB)
-	- 6/9 for load and store as u64 (storing to an imm makes no sense so E9 is load from gs reg cuz 9 looks like g in some fonts)
-- 5x/Dx both use x like:
-	- 7 for addr-of (& is on the 7 key)
-	- C for call
+	- 6/9 for load and store as u64 (storing to an imm makes no sense so E9 is load from gs reg
+	cuz 9 looks like g in some fonts - gs reg is used for getting kernel32 so we can call Win32 API funcs)
+	- 7 for addr-of (& is on the 7 key - E7 is return imm as in rET)
+	- C for call (I'm thinking of making EC be imm shift left for easy large imm creation)
 
 - So `5502` does `*+@i32` with stack slot 2 aka `i32_array_passed_as_first_param[index_at_top_of_stack]`
 	- Stack slot 2 is the first param because 0 is rbp and 1 is the return address. -1 would be the first local variable.
@@ -65,59 +75,60 @@ The following is an explantion of the design.
 
 The mnemonic/reasoning for all the entries in the remaining op groups (Ax, Bx, Cx, 7x) is as follows:
 
+| op |    what it does    |                    mnemonic/reasoning                  |
+| -- |  ----------------- | ------------------------------------------------------ |
+| A0 | or                 | 0 like O as in OR                                      |
+| A1 | not                | 1 like ! but bitwise not logical                       |
+| A2 | udiv               | 2 like a rotated u as in udiv                          |
+| A3 | umul upper 64 bits | 3 like a rotated m as in mul                           |
+| A4 | shift left         | 4 is the number that most looks like < as in <<        |
+| A5 | negate             | 5 like S as in Sign as in change Sign                  |
+| A6 | umod               | 6 looks like C, signed modulo is C                     |
+| A7 | shift right        | 7 like a skewed > as in >>                             |
+| A8 | xor                | 8 ignore top and bottom and its an x                   |
+| A9 | arith shift right  | 9 like -> (see above) and the - is like sign aka arith |
+| AA | add                | A for Add                                              |
+| AB | sub                | B for suB                                              |
+| AC | modulo             | C looks like a loop, modulo loops circular buffers     |
+| AD | div                | D for Div                                              |
+| AE | mul                | E like a rotated M as in Mul                           |
+| AF | and                | F like a bitmask for an and                            |
+| B0 | branch if 0        | self explanatory                                       |
+| B1 | pop 1 abi reg      | self explanatory                                       |
+| B2 | pop 2 abi regs     | self explanatory                                       |
+| B3 | pop 3 abi regs     | self explanatory                                       |
+| B4 | pop 4 abi regs     | self explanatory                                       |
+| B5 | pop 5 abi regs     | self explanatory                                       |
+| B6 | pop 6 abi regs     | self explanatory                                       |
+| B7 | pop 7 abi regs     | self explanatory                                       |
+| B8 | pop 8 abi regs     | self explanatory                                       |
+| B9 | non-syscall abi    | 9 like plan9 -> unix -> linux which needs this         |
+| BA | align stack        | self explanatory                                       |
+| BB | branch back        | self explanatory                                       |
+| BC | call proc          | self explanatory                                       |
+| BD | deploy stack frame | D for Deploy/setup stack frame and push abi regs       |
+| BE | return             | E for rEturn                                           |
+| BF | branch forward     | self explanatory                                       |
+| C0 | unassigned         |                                                        |
+| C1 | not equal          | 1 like ! as in !=                                      |
+| C2 | lt or eq unsigned  | 2 like u as in unsigned (TODO: better mnemonic)        |
+| C3 | gt or eq unsigned  | 3 is gt 2 and 2 is unsigned                            |
+| C4 | lt signed          | 4 is the number that most looks like <                 |
+| C5 | unassigned         |                                                        |
+| C6 | lt or eq signed    | 6 like <- or <=                                        |
+| C7 | gt signed          | 7 like a skewed >                                      |
+| C8 | unassigned         |                                                        |
+| C9 | gt or eq signed    | 9 like -> or => or >=                                  |
+| CA | gt unsigned        | A for Above aka unsigned >                             |
+| CB | lt unsigned        | B for Below aka usngiend <                             |
+| CC | unassigned         |                                                        |
+| CD | unassigned         |                                                        |
+| CE | equal to           | E for Equal to                                         |
+| CF | unassigned         |                                                        |
+| 7E | tag enscribe       | enscribe as in write addr into table                   |
+| 7F | tag fixup          | fixup as in fixup rel offsets of branches to this      |
 
-| byte1 |      what it does      |                     mnemonic/reasoning                     |
-| ----- |      ------------      | ---------------------------------------------------------- |
-| A0    | or                     | 0 like O as in OR                                          |
-| A1    | not                    | 1 like ! but bitwise not logical                           |
-| A2    | udiv                   | 2 like a rotated u as in udiv                              |
-| A3    | umul upper 64 bits     | 3 like a rotated m as in mul                               |
-| A4    | shift left             | 4 is the number that most looks like < as in <<            |
-| A5    | negate                 | 5 like S as in Sign as in change Sign                      |
-| A6    | umod                   | 6 looks like C, signed modulo is C                         |
-| A7    | shift right            | 7 like a skewed > as in >>                                 |
-| A8    | xor                    | 8 ignore top and bottom and its an x                       |
-| A9    | arith shift right      | 9 like -> (see above) and the - is like sign aka arith     |
-| AA    | add                    | A for Add                                                  |
-| AB    | sub                    | B for suB                                                  |
-| AC    | modulo                 | C looks like a loop, modulo loops circular buffers         |
-| AD    | div                    | D for Div                                                  |
-| AE    | mul                    | E like a rotated M as in Mul                               |
-| AF    | and                    | F like a bitmask for an and                                |
-| B0    | branch if 0            | self explanatory                                           |
-| B1    | pop 1 abi reg          | self explanatory                                           |
-| B2    | pop 2 abi regs         | self explanatory                                           |
-| B3    | pop 3 abi regs         | self explanatory                                           |
-| B4    | pop 4 abi regs         | self explanatory                                           |
-| B5    | pop 5 abi regs         | self explanatory                                           |
-| B6    | pop 6 abi regs         | self explanatory                                           |
-| B7    | pop 7 abi regs         | self explanatory                                           |
-| B8    | pop 8 abi regs         | self explanatory                                           |
-| B9    | non-syscall abi        | 9 like plan9 -> unix -> linux which needs this             |
-| BA    | align stack            | self explanatory                                           |
-| BB    | branch back            | self explanatory                                           |
-| BC    | call proc              | self explanatory                                           |
-| BD    | deploy stack frame     | D for Deploy/setup stack frame and push abi regs           |
-| BE    | return                 | E for rEturn                                               |
-| BF    | branch forward         | self explanatory                                           |
-| C0    | unassigned             |                                                            |
-| C1    | not equal              | 1 like ! as in !=                                          |
-| C2    | lt or eq unsigned      | 2 like u as in unsigned (TODO: better mnemonic)            |
-| C3    | gt or eq unsigned      | 3 is gt 2 and 2 is unsigned                                |
-| C4    | lt signed              | 4 is the number that most looks like <                     |
-| C5    | unassigned             |                                                            |
-| C6    | lt or eq signed        | 6 like <- or <=                                            |
-| C7    | gt signed              | 7 like a skewed >                                          |
-| C8    | unassigned             |                                                            |
-| C9    | gt or eq signed        | 9 like -> or => or >=                                      |
-| CA    | gt unsigned            | A for Above aka unsigned >                                 |
-| CB    | lt unsigned            | B for Below aka usngiend <                                 |
-| CC    | unassigned             |                                                            |
-| CD    | unassigned             |                                                            |
-| CE    | equal to               | E for Equal to                                             |
-| CF    | unassigned             |                                                            |
-| 7E    | tag enscribe           | enscribe as in write addr into table                       |
-| 7F    | tag fixup              | fixup as in fixup rel offsets of branches to this          |
+## Why this design?
 
 - Why isn't load and store on 1x and 5x?
 
@@ -147,7 +158,7 @@ The mnemonic/reasoning for all the entries in the remaining op groups (Ax, Bx, C
 
 	Similar to the previous point, having things fixed size makes lots of things easier.
 	I also want to easily decompile - and with each outupt as a fixed size, that becomes much easier.
-	Also it's very easy to later eliminate the nops (especially if 90 isn't anywhere in valid code).
+	Also it's very easy to later eliminate the nops.
 
 - Why stack based?
 
@@ -167,4 +178,16 @@ The mnemonic/reasoning for all the entries in the remaining op groups (Ax, Bx, C
 - Why bootstrap?
 
 	It's fun.
+
+## Implementation
+
+hrmc.s and hrmc.dmp are 2 implementations of the HRMC compiler done in different ways (GNU assembly and hex dump).
+They start with making a simple executable file header with a read-write-execute .text section big enough for all the code and data we need.
+Then comes the 256 bytes of machine code that compiles the bytecode and jumps to the generated machine code.
+Then comes the 256x16 byte HRMC lookup table of machine code.
+Then comes the HRMC bytecode.
+At the top of the files are shell commands to compile/inspect the HRMC compiler executables.
+My vim config has shortcuts to run a command at line 1-9 and put the output in the prev/new window.
+
+zdc.c is an earlier attempt at a simple compiler in C and not totally related to HRMC, but I used it as a reference for many functions so I included it in this repo.
 
