@@ -190,4 +190,5 @@ At the top of the files are shell commands to compile/inspect the HRMC compiler 
 My vim config has shortcuts to run a command at line 1-9 and put the output in the prev/new window.
 
 zdc.c is an earlier attempt at a simple compiler in C and not totally related to HRMC, but I used it as a reference for many functions so I included it in this repo.
+creb.c is also an earlier attempt but more top-down, verbose, and probably a more helpful reference.
 
