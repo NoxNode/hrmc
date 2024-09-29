@@ -441,6 +441,12 @@ u64 __readgsqword(u32 Offset) {
 	return (u64) ret;
 }
 #endif // _MSC_VER
+/* some useful links to understand link_win:
+https://hero.handmade.network/forums/code-discussion/t/129-howto_-_building_without_import_libraries
+https://www.ired.team/offensive-security/code-injection-process-injection/finding-kernel32-base-and-function-addresses-in-shellcode
+https://en.wikipedia.org/wiki/Win32_Thread_Information_Block
+https://stackoverflow.com/questions/10810203/what-is-the-fs-gs-register-intended-for
+*/
 int link_win() {
 	//// find kernel32.dll in loaded module list via TEB->PEB->Ldr->ModuleList
 	PEB* peb = (PEB*)__readgsqword(0x60);

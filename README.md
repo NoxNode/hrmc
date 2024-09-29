@@ -17,6 +17,19 @@ My goal is to use HRMC to bootstrap up to an editor with ideas from
 [Tomorrow Corp Tech](https://youtu.be/72y2EC5fkcE?t=453),
 and [Dion Systems](https://youtu.be/GB_oTjVVgDc?t=1709).
 
+## Implementation
+
+hrmc.s and hrmc.dmp are 2 implementations of the HRMC compiler done in different ways (GNU assembly and hex dump).
+They start with making a simple executable file header with a read-write-execute .text section big enough for all the code and data needed.
+Then comes the 256 bytes of machine code that compiles the bytecode and jumps to the generated machine code.
+Then comes the 256x16 byte HRMC lookup table of machine code.
+Then comes the HRMC bytecode.
+At the top of the files are shell commands to compile/inspect the HRMC compiler executables.
+My vim config has shortcuts to run a command at line 1-9 and put the output in the prev/new window.
+
+`ref_code` contains some C code that were old attemps at a simple C compiler that I often used as references.
+`link_win` in `min_common_win.c` is probably most helpful for understanding the whole `get_kernel32` `GetProcAddress` stuff works.
+
 ## Design
 
 HRMC is not really a machine code (yet) - it's more of a bytecode, and it always has a parameter byte even if ignored.
@@ -53,13 +66,13 @@ The following is an explantion of the design.
 - 5x/Dx/Ex also use x like so:
 	- A/B for + and - (A for Add, B for suB)
 	- 6/9 for load and store as u64 (storing to an imm makes no sense so E9 is load from gs reg
-	cuz 9 looks like g in some fonts - gs reg is used for getting kernel32 so we can call Win32 API funcs)
+	cuz 9 looks like g in some fonts - gs reg is used for getting kernel32 in order to call Win32 API funcs)
 	- 7 for addr-of (& is on the 7 key - E7 is return imm as in rET)
 	- C for call (I'm thinking of making EC be imm shift left for easy large imm creation)
 
 - So `5502` does `*+@i32` with stack slot 2 aka `i32_array_passed_as_first_param[index_at_top_of_stack]`
 	- Stack slot 2 is the first param because 0 is rbp and 1 is the return address. -1 would be the first local variable.
-	- ... except when we want a function callable from external things using the C FFI.
+	- ... except if want a function callable from external things using the C FFI.
 
 		In this case, stack slot -1 is actually the first param, -2 is 2nd, -3 is 3rd, -4 is 4th, 6 is the 5th param, 7 is the 6th, etc.
 
@@ -132,8 +145,8 @@ The mnemonic/reasoning for all the entries in the remaining op groups (Ax, Bx, C
 
 - Why isn't load and store on 1x and 5x?
 
-	To simplify the compiler, ops that use the 2nd byte in a certain way are grouped by the 1st hex digit of the 1st byte.
-	So we only have the 2nd hex digit of the 1st byte to distinguish ops that use the 2nd byte in the same way.
+	To simplify the compiler, ops that use the param byte the same way are grouped by the 1st hex digit of the op byte.
+	So there's only the 2nd hex digit of the op byte to distinguish between ops that use the param byte in the same way.
 	So instructions that load and store need to not collide with typed instructions.
 	So either 1 and 5 can't mean i8 and i32 or they can't mean load and store.
 	I like the idea of using the size in bytes as the type and +1 to mean signed more than 1 and 5 for load and store.
@@ -178,17 +191,4 @@ The mnemonic/reasoning for all the entries in the remaining op groups (Ax, Bx, C
 - Why bootstrap?
 
 	It's fun.
-
-## Implementation
-
-hrmc.s and hrmc.dmp are 2 implementations of the HRMC compiler done in different ways (GNU assembly and hex dump).
-They start with making a simple executable file header with a read-write-execute .text section big enough for all the code and data we need.
-Then comes the 256 bytes of machine code that compiles the bytecode and jumps to the generated machine code.
-Then comes the 256x16 byte HRMC lookup table of machine code.
-Then comes the HRMC bytecode.
-At the top of the files are shell commands to compile/inspect the HRMC compiler executables.
-My vim config has shortcuts to run a command at line 1-9 and put the output in the prev/new window.
-
-zdc.c is an earlier attempt at a simple compiler in C and not totally related to HRMC, but I used it as a reference for many functions so I included it in this repo.
-creb.c is also an earlier attempt but more top-down, verbose, and probably a more helpful reference.
 
