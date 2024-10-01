@@ -190,13 +190,13 @@ e9 35 ff ff ff       	# jmp    0x4001a5                           40026b:
 6872 6D63 2E64 6D70 0000 0000 0000 0000 # 0D "hrmc.dmp" then contents of hrmc.dmp
 5265 6164 4669 6c65 0000 0000 0000 0000 # 0E "ReadFile" then actual ReadFile
 5772 6974 6546 696c 6500 0000 0000 0000 # 0F "WriteFile" then actual WriteFile
-0000 0000 0000 0000 0000 0000 0000 0000 # 10
-0000 0000 0000 0000 0000 0000 0000 0000 # 11
-0000 0000 0000 0000 0000 0000 0000 0000 # 12
-0000 0000 0000 0000 0000 0000 0000 0000 # 13
-0000 0000 0000 0000 0000 0000 0000 0000 # 14
-0000 0000 0000 0000 0000 0000 0000 0000 # 15
-0000 0000 0000 0000 0000 0000 0000 0000 # 16
+506F 7374 5175 6974 4D65 7373 6167 6500 # 10 PostQuitMessage
+4465 6657 696E 646F 7750 726F 6341 0000 # 11 DefWindowProcA
+5265 6769 7374 6572 436C 6173 7341 0000 # 12 RegisterClassA
+4372 6561 7465 5769 6E64 6F77 4578 4100 # 13 CreateWindowExA
+5065 656B 4D65 7373 6167 6541 0000 0000 # 14 PeekMessageA
+5472 616E 736C 6174 654D 6573 7361 6765 # 15 TranslateMessage
+4469 7370 6174 6368 4D65 7373 6167 6541 # 16 DispatchMessageA
 0000 0000 0000 0000 0000 0000 0000 0000 # 17
 0000 0000 0000 0000 0000 0000 0000 0000 # 18
 0000 0000 0000 0000 0000 0000 0000 0000 # 19
@@ -433,7 +433,7 @@ e9 35 ff ff ff       	# jmp    0x4001a5                           40026b:
 
 ## int main()
 BD00 # setup stack frame
-DC02 D902 5E10 # get_kernel32() =02
+DC02 D902 5E20 # get_kernel32() =02
 D706 D602 DC0A D906 # GetProcAddress(kernel32, "GetStdHandle") =06
 D70F D602 DC0A D90F # GetProcAddress(kernel32, "WriteFile") =0F
 D70E D602 DC0A D90E # GetProcAddress(kernel32, "ReadFile") =0E
@@ -474,6 +474,24 @@ E600 59F2 # j=0
 E66F D70D EA05 9000 E675 D70D EA06 9000 E674 D70D EA07 9000 # change "hrmc.dmp" to "hrmc.out"
 BA00 E600 E600 E602 E600 E600 E604 E61C A400 D70D B400 DC0C 59F5 # CreateFileA(filename, GENERIC_WRITE, 0, 0, CREATE_ALWAYS, 0, 0) =F5
 BA00 E600 57FA 56F2 56F0 56F5 B400 DC0F # WriteFile(fout,msg,size,&written,0)
+
+D710 D602 DC0A D910 # GetProcAddress(kernel32, "PostQuitMessage") =10
+D711 D602 DC0A D911 # GetProcAddress(kernel32, "DefWindowProcA") =11
+D712 D602 DC0A D912 # GetProcAddress(kernel32, "RegisterClassA") =12
+D713 D602 DC0A D913 # GetProcAddress(kernel32, "CreateWindowExA") =13
+D714 D602 DC0A D914 # GetProcAddress(kernel32, "PeekMessageA") =14
+D715 D602 DC0A D915 # GetProcAddress(kernel32, "TranslateMessage") =15
+D716 D602 DC0A D916 # GetProcAddress(kernel32, "DispatchMessageA") =16
+# make event handler func
+# init winclass struct
+# call registerclass
+# cal createwindow
+# while true
+# peekmessage
+	# if msg.message is WM_QUIT
+		# break
+	# translate
+	# dispatch
 BE00 # return
 
 ## void* get_kernel32()
