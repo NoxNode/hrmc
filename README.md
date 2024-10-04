@@ -133,7 +133,7 @@ The mnemonic/reasoning for all the entries in the remaining op groups (Ax, Bx, C
 | C8 | unassigned         |                                                        |
 | C9 | gt or eq signed    | 9 like -> or => or >=                                  |
 | CA | gt unsigned        | A for Above aka unsigned >                             |
-| CB | lt unsigned        | B for Below aka usngiend <                             |
+| CB | lt unsigned        | B for Below aka unsigned <                             |
 | CC | unassigned         |                                                        |
 | CD | unassigned         |                                                        |
 | CE | equal to           | E for Equal to                                         |

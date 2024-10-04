@@ -1,5 +1,6 @@
 ##cat hrmc.dmp | cut -d\# -f1 | xxd -p -r > hrmc.exe && ./hrmc.exe
 ##mv hrmc.out hrmc.exe && ./hrmc.exe
+##objdump -d hrmc.exe ; echo "update VirtualSize and SizeOfRawData in .text section in order to use objdump -d"
 ##xxd hrmc.exe
 ##xxd hrmc.out
 # hrmc.dmp is a compiler for hrmc to Windows x64 written in an ascii hexdump
@@ -86,9 +87,9 @@ F0 00                    # SizeOfOptionalHeader (including data directories)
 
 ## .text Section Header (0x148)
 2e 74 65 78 74 00 00 00  # Name
-00 40 00 00              # VirtualSize
+00 40 00 00              # VirtualSize # update to sizeof exe - 0x170 to use objdump -d
 70 01 00 00              # VirtualAddress
-00 40 00 00              # SizeOfRawData # TODO: keep updated with size of exe - 0x170
+00 40 00 00              # SizeOfRawData # update to sizeof exe - 0x170 to use objdump -d
 70 01 00 00              # PointerToRawData
 00 00 00 00              # PointerToRelocations        UNUSED
 00 00 00 00              # PointerToLinenumbers        UNUSED
@@ -171,8 +172,7 @@ eb 8a                	# jmp    0x4001a5                           400219:
 75 d2                	# jne    0x40023d                           400269:
 e9 35 ff ff ff       	# jmp    0x4001a5                           40026b:
 
-# 400270
-
+# 400270:
 # hrmc table
 0000 0000 0000 0000 0000 0000 0000 0000 # 00
 436C 6F73 6548 616E 646C 6500 0000 0000 # 01 "CloseHandle" then actual CloseHandle
@@ -185,7 +185,7 @@ e9 35 ff ff ff       	# jmp    0x4001a5                           40026b:
 4765 7446 696C 6541 7474 7269 6275 7465 # 08 "GetFileAttributesExA" then actual GetFileAttributesExA
 7345 7841 0000 0000 0000 0000 0000 0000 # 09 "GetFileAttributesExA" continued
 0000 0000 0000 0000 0000 0000 0000 0000 # 0A GetProcAddress
-0000 0000 0000 0000 0000 0000 0000 0000 # 0B
+0000 0000 0000 0000 0000 0000 0000 0000 # 0B memset
 4372 6561 7465 4669 6C65 4100 0000 0000 # 0C "CreateFileA" then actual CreateFileA
 6872 6D63 2E64 6D70 0000 0000 0000 0000 # 0D "hrmc.dmp" then contents of hrmc.dmp
 5265 6164 4669 6c65 0000 0000 0000 0000 # 0E "ReadFile" then actual ReadFile
@@ -433,7 +433,7 @@ e9 35 ff ff ff       	# jmp    0x4001a5                           40026b:
 
 ## int main()
 BD00 # setup stack frame
-DC02 D902 5E20 # get_kernel32() =02
+DC02 D902 5E68 # get_kernel32() =02
 D706 D602 DC0A D906 # GetProcAddress(kernel32, "GetStdHandle") =06
 D70F D602 DC0A D90F # GetProcAddress(kernel32, "WriteFile") =0F
 D70E D602 DC0A D90E # GetProcAddress(kernel32, "ReadFile") =0E
@@ -482,8 +482,11 @@ D713 D602 DC0A D913 # GetProcAddress(kernel32, "CreateWindowExA") =13
 D714 D602 DC0A D914 # GetProcAddress(kernel32, "PeekMessageA") =14
 D715 D602 DC0A D915 # GetProcAddress(kernel32, "TranslateMessage") =15
 D716 D602 DC0A D916 # GetProcAddress(kernel32, "DispatchMessageA") =16
-# make event handler func
 # init winclass struct
+E648 E600 5720 BC0B # memset(slot 0x20, 0, 72)
+D70B 5928 # lpfnWndProc = Win32EventHandler
+# TODO: GetModuleHandleA(0) and do 5938
+
 # call registerclass
 # cal createwindow
 # while true
@@ -493,6 +496,19 @@ D716 D602 DC0A D916 # GetProcAddress(kernel32, "DispatchMessageA") =16
 	# translate
 	# dispatch
 BE00 # return
+
+7E1E BD00 # 1E=&Win32EventHandler
+7E71 56FE E602 CE00 B071 # msg WM_DESTROY == ?
+     BA00 E600 B100 BC10 # PostQuitMessage(0)
+7F71
+BA00 56FC 56FD 56FE 56FF B400 BC11 BE00 # return DefWindowProcA(window, msg, wp, lp)
+
+7E0B BD00 # 0B=&memset(dest, val, count); setup stack frame
+5602 59FF # bytes = dest
+7E71 5604 5604 EB01 5904 E600 BE00 B071 # while(count--)
+     5603 56FF 56FF EA01 59FF 9000 # *bytes++ = val
+7F71
+5602 BE00 # return dest
 
 ## void* get_kernel32()
 7E02 BD00 5E10 # 02=&get_kernel32; setup stack frame; reserve 16 stack slots for locals

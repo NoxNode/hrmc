@@ -1,4 +1,4 @@
-//gcc testwin.c && ./a.exe
+//gcc ref_code/testwin.c && ./a.exe
 #include <windows.h>
 #include <stdio.h>
 
@@ -15,7 +15,10 @@ int CALLBACK WinMain(HINSTANCE I, HINSTANCE PI, LPSTR C, int S) {
 	winclass.hInstance = I;
 	winclass.lpszClassName = "winclass";
 	RegisterClassA(&winclass);
-	//printf("%d\n", sizeof(winclass)); //0x48
+	printf("%d\n", sizeof(winclass)); //0x48
+	printf("%d\n", offsetof(WNDCLASSA, lpfnWndProc)); //0x08
+	printf("%d\n", offsetof(WNDCLASSA, hInstance)); //0x18
+	printf("%d\n", offsetof(WNDCLASSA, lpszClassName)); //0x40
 
 	// create window
 	HWND window = CreateWindowExA(0, winclass.lpszClassName, "title",
@@ -30,7 +33,7 @@ int CALLBACK WinMain(HINSTANCE I, HINSTANCE PI, LPSTR C, int S) {
 				running = 0;
 				break;
 			}
-			// TODO: see if we can get keyinput and stuff here or need to bein callback
+			// TODO: see if we can get keyinput and stuff here or need to be in callback
 			TranslateMessage(&msg);
 			DispatchMessageA(&msg);
 		}
