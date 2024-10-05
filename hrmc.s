@@ -307,9 +307,9 @@ cqo; pop rcx; pop rax; idiv rax, rcx; push rax ; .align 16, 0x90                
 pop rcx; pop rax;      imul rcx; push rax ; .align 16, 0x90                                                                # AE mul
 pop rcx; pop rax;      and rax, rcx; push rax ; .align 16, 0x90                                                            # AF and
 .byte 0x90,0x90, 0x90,0x90,0x90,0x90;pop rax; test rax, rax; je mzhdr;                                                     # B0 ?
-pop rcx;                          .align 16, 0x90                                                                          # B1 pop 1 abi reg
-pop rcx; pop rdx;                 .align 16, 0x90                                                                          # B2 pop 2 abi regs
-pop rcx; pop rdx; pop r8;         .align 16, 0x90                                                                          # B3 pop 3 abi regs
+pop rcx;                          sub rsp, 0x20; .align 16, 0x90                                                           # B1 pop 1 abi reg
+pop rcx; pop rdx;                 sub rsp, 0x20; .align 16, 0x90                                                           # B2 pop 2 abi regs
+pop rcx; pop rdx; pop r8;         sub rsp, 0x20; .align 16, 0x90                                                           # B3 pop 3 abi regs
 pop rcx; pop rdx; pop r8; pop r9; sub rsp, 0x20; .align 16, 0x90                                                           # B4 pop 4 abi regs; rsp-20 is for shadow space
 .zero 16*1                                                                                                                 # B5 unused in windows, used in linux
 .zero 16*1                                                                                                                 # B6 unused in windows, used in linux

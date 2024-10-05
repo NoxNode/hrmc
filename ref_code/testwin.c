@@ -19,6 +19,7 @@ int CALLBACK WinMain(HINSTANCE I, HINSTANCE PI, LPSTR C, int S) {
 	printf("%d\n", offsetof(WNDCLASSA, lpfnWndProc)); //0x08
 	printf("%d\n", offsetof(WNDCLASSA, hInstance)); //0x18
 	printf("%d\n", offsetof(WNDCLASSA, lpszClassName)); //0x40
+	printf("%x\n", WS_OVERLAPPEDWINDOW|WS_VISIBLE);
 
 	// create window
 	HWND window = CreateWindowExA(0, winclass.lpszClassName, "title",

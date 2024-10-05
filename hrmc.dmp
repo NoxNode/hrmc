@@ -1,4 +1,4 @@
-##cat hrmc.dmp | cut -d\# -f1 | xxd -p -r > hrmc.exe && ./hrmc.exe
+##cat hrmc.dmp | cut -d\# -f1 | xxd -p -r > hrmc.exe && ./hrmc.exe ; echo $?
 ##mv hrmc.out hrmc.exe && ./hrmc.exe
 ##objdump -d hrmc.exe ; echo "update VirtualSize and SizeOfRawData in .text section in order to use objdump -d"
 ##xxd hrmc.exe
@@ -197,10 +197,10 @@ e9 35 ff ff ff       	# jmp    0x4001a5                           40026b:
 5065 656B 4D65 7373 6167 6541 0000 0000 # 14 PeekMessageA
 5472 616E 736C 6174 654D 6573 7361 6765 # 15 TranslateMessage
 4469 7370 6174 6368 4D65 7373 6167 6541 # 16 DispatchMessageA
-0000 0000 0000 0000 0000 0000 0000 0000 # 17
-0000 0000 0000 0000 0000 0000 0000 0000 # 18
-0000 0000 0000 0000 0000 0000 0000 0000 # 19
-0000 0000 0000 0000 0000 0000 0000 0000 # 1A
+4765 744D 6F64 756C 6548 616E 646C 6541 # 17 GetModuleHandleA
+0000 cf10 0000 0000 0000 0000 0000 0000 # 18 WS_OVERLAPPEDWINDOW|WS_VISIBLE
+4C6F 6164 4C69 6272 6172 7941 0000 0000 # 19 LoadLibraryA
+7573 6572 3332 2E64 6C6C 0000 0000 0000 # 1A user32.dll
 0000 0000 0000 0000 0000 0000 0000 0000 # 1B
 0000 0000 0000 0000 0000 0000 0000 0000 # 1C
 0000 0000 0000 0000 0000 0000 0000 0000 # 1D
@@ -351,9 +351,9 @@ e9 35 ff ff ff       	# jmp    0x4001a5                           40026b:
 5958 48f7 e950 662e 0f1f 8400 0000 0000 # AE mul
 5958 4821 c850 662e 0f1f 8400 0000 0000 # AF and
 9090 9090 9090 5848 85c0 0f84 90f2 ffff # B0 ?
-5966 662e 0f1f 8400 0000 0000 0f1f 4000 # B1 pop 1 abi reg
-595a 6666 2e0f 1f84 0000 0000 000f 1f00 # B2 pop 2 abi regs
-595a 4158 6666 2e0f 1f84 0000 0000 0090 # B3 pop 3 abi regs
+5948 83ec 2066 662e 0f1f 8400 0000 0000 # B1 pop 1 abi reg
+595a 4883 ec20 662e 0f1f 8400 0000 0000 # B2 pop 2 abi regs
+595a 4158 4883 ec20 0f1f 8400 0000 0000 # B3 pop 3 abi regs
 595a 4158 4159 4883 ec20 660f 1f44 0000 # B4 pop 4 abi regs; rsp-20 is for shadow space
 0000 0000 0000 0000 0000 0000 0000 0000 # B5 unused in windows, used in linux
 0000 0000 0000 0000 0000 0000 0000 0000 # B6 unused in windows, used in linux
@@ -433,7 +433,7 @@ e9 35 ff ff ff       	# jmp    0x4001a5                           40026b:
 
 ## int main()
 BD00 # setup stack frame
-DC02 D902 5E68 # get_kernel32() =02
+DC02 D902 5E20 # get_kernel32() =02
 D706 D602 DC0A D906 # GetProcAddress(kernel32, "GetStdHandle") =06
 D70F D602 DC0A D90F # GetProcAddress(kernel32, "WriteFile") =0F
 D70E D602 DC0A D90E # GetProcAddress(kernel32, "ReadFile") =0E
@@ -475,33 +475,40 @@ E66F D70D EA05 9000 E675 D70D EA06 9000 E674 D70D EA07 9000 # change "hrmc.dmp" 
 BA00 E600 E600 E602 E600 E600 E604 E61C A400 D70D B400 DC0C 59F5 # CreateFileA(filename, GENERIC_WRITE, 0, 0, CREATE_ALWAYS, 0, 0) =F5
 BA00 E600 57FA 56F2 56F0 56F5 B400 DC0F # WriteFile(fout,msg,size,&written,0)
 
-D710 D602 DC0A D910 # GetProcAddress(kernel32, "PostQuitMessage") =10
-D711 D602 DC0A D911 # GetProcAddress(kernel32, "DefWindowProcA") =11
-D712 D602 DC0A D912 # GetProcAddress(kernel32, "RegisterClassA") =12
-D713 D602 DC0A D913 # GetProcAddress(kernel32, "CreateWindowExA") =13
-D714 D602 DC0A D914 # GetProcAddress(kernel32, "PeekMessageA") =14
-D715 D602 DC0A D915 # GetProcAddress(kernel32, "TranslateMessage") =15
-D716 D602 DC0A D916 # GetProcAddress(kernel32, "DispatchMessageA") =16
+# TODO: update hrmc.s 0x-1x with new strings
+# 16 char strings need empty next entry for null term
+# expand hrmc bytecode part's available mem
+D717 D602 DC0A D917 # GetProcAddress(kernel32, "GetModuleHandleA") =17
+D719 D602 DC0A D919 # GetProcAddress(kernel32, "LoadLibraryA") =19
+BA00 D71A B100 DC19 D91A # LoadLibraryA("user32.dll") =1A
+D710 D61A DC0A D910 # GetProcAddress(user32, "PostQuitMessage") =10
+D711 D61A DC0A D911 # GetProcAddress(user32, "DefWindowProcA") =11
+D712 D61A DC0A D912 # GetProcAddress(user32, "RegisterClassA") =12
+D713 D61A DC0A D913 # GetProcAddress(user32, "CreateWindowExA") =13
+#D714 D61A DC0A D914 # GetProcAddress(user32, "PeekMessageA") =14
+#D715 D61A DC0A D915 # GetProcAddress(user32, "TranslateMessage") =15
+#D716 D61A DC0A D916 # GetProcAddress(user32, "DispatchMessageA") =16
 # init winclass struct
-E648 E600 5720 BC0B # memset(slot 0x20, 0, 72)
-D70B 5928 # lpfnWndProc = Win32EventHandler
-# TODO: GetModuleHandleA(0) and do 5938
-
-# call registerclass
-# cal createwindow
+#E648 E600 57E0 BC0B # memset(slot 0xA0, 0, 72)
+#D70B 59E1 # winclass.lpfnWndProc = Win32EventHandler
+#BA00 E600 B100 DC17 59E3 # winclass.hInstance = GetModuleHandleA(0)
+#D70D 59E8 # winclass.lpszClassName = "hrmc.out"
+#BA00 57A0 B100 DC12 # RegisterClassA(&winclass)
+# createwindow
+#BA00 E600 56E3 E600 E600 E608 E61C A400 59EF 56EF 56EF 56EF 56EF D618 D70D D70D E600 B400 DC13 59EE
 # while true
 # peekmessage
 	# if msg.message is WM_QUIT
 		# break
 	# translate
 	# dispatch
-BE00 # return
+E700 # return
 
 7E1E BD00 # 1E=&Win32EventHandler
 7E71 56FE E602 CE00 B071 # msg WM_DESTROY == ?
-     BA00 E600 B100 BC10 # PostQuitMessage(0)
+     BA00 E600 B100 DC10 # PostQuitMessage(0)
 7F71
-BA00 56FC 56FD 56FE 56FF B400 BC11 BE00 # return DefWindowProcA(window, msg, wp, lp)
+BA00 56FC 56FD 56FE 56FF B400 DC11 BE00 # return DefWindowProcA(window, msg, wp, lp)
 
 7E0B BD00 # 0B=&memset(dest, val, count); setup stack frame
 5602 59FF # bytes = dest
