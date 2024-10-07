@@ -133,6 +133,11 @@ compile_loop:
 	movzx ecx, byte ptr [rsi]
 	movzx edx, byte ptr [rsi+1]
 	add rsi, 2
+# if c is 0 then we done compiling, jmp to the code we generated
+	cmp cl, 0
+	jne continue_compiling
+	ret
+continue_compiling:
 # r8 = c << 4; r9 = d << 4; r10 = c & 0xF0 (useful for later)
 	mov r8, rcx
 	shl r8, 4
@@ -144,11 +149,6 @@ compile_loop:
 	movdqa xmm0, [rbx+r8]
 	movdqa [rdi], xmm0
 	add rdi, 16
-# if c is 0 then we done compiling, jmp to the code we generated
-	cmp cl, 0
-	jne continue_compiling
-	ret
-continue_compiling:
 # if c & 0xF0 is 0xD0 then u32[dest-9] = d << 4
 	cmp r10, 0xD0
 	jne end_of_global_offset_patching
@@ -229,12 +229,27 @@ hrmc_table:
 .asciz "GetFileAttributesExA"; .align 16,0                                                                                 # 08 "GetFileAttributesExA" then actual GetFileAttributesExA
 #.asciz "GetFileAttributesExA"; .align 16,0                                                                                # 09 "GetFileAttributesExA" continued
 .zero 16*1                                                                                                                 # 0A GetProcAddress
-.zero 16*1                                                                                                                 # 0B
+.zero 16*1                                                                                                                 # 0B memset
 .asciz "CreateFileA"; .align 16,0                                                                                          # 0C "CreateFileA" then actual CreateFileA
 .asciz "hrmc.dmp"; .align 16,0                                                                                             # 0D "hrmc.dmp" then contents of hrmc.dmp
 .asciz "ReadFile"; .align 16,0                                                                                             # 0E "ReadFile" then actual ReadFile
 .asciz "WriteFile"; .align 16,0                                                                                            # 0F "WriteFile" then actual WriteFile
-.zero 16*16                                                                                                                # 10-1F
+.asciz "LoadLibraryA"; .align 16,0                                                                                         # 10 "LoadLibraryA" then actual LoadLibraryA
+.asciz "user32.dll"; .align 16,0                                                                                           # 11 "user32.dll" then actual user32
+.asciz "RegisterClassA"; .align 16,0                                                                                       # 12 "RegisterClassA" then actual RegisterClassA
+.asciz "CreateWindowExA"; .align 16,0                                                                                      # 13 "CreateWindowExA" then actual CreateWindowExA
+.asciz "PeekMessageA"; .align 16,0                                                                                         # 14 "PeekMessageA" then actual PeekMessageA
+.asciz "PostQuitMessage"; .align 16,0                                                                                      # 15 "PostQuitMessage" then actual PostQuitMessage
+.asciz "DefWindowProcA"; .align 16,0                                                                                       # 16 "DefWindowProcA" then actual DefWindowProcA
+.ascii "TranslateMessage";                                                                                                 # 17 "TranslateMessage" then actual TranslateMessage
+.zero 16*1                                                                                                                 # 18
+.zero 16*1                                                                                                                 # 19
+.ascii "GetModuleHandleA";                                                                                                 # 1A "GetModuleHandleA" then actual GetModuleHandleA
+.zero 16*1                                                                                                                 # 1B
+.zero 16*1                                                                                                                 # 1C
+.ascii "DispatchMessageA";                                                                                                 # 1D "DispatchMessageA" then actual DispatchMessageA
+.zero 16*1                                                                                                                 # 1E
+.zero 16*1                                                                                                                 # 1F
 .zero 16*16                                                                                                                # 20-2F
 .zero 16*16                                                                                                                # 30-3F
 .zero 16*16                                                                                                                # 40-4F
@@ -366,16 +381,16 @@ pop rax; shl eax, 3; add rax, [rbx+0x76543210]; mov rax,   qword ptr [rax]; push
 .byte 0x90,0x90; mov rax,QWORD PTR gs:0x60; push rax; .byte 0x90,0x90,0x90,0x90;                                           # E9 gs:imm - used in get_kernel32()
 .byte 0x90,0x90,0x90; pop rax; add rax, 42; push rax; .byte 0x90,0x90,0x90,0x90,0x90,0x90,0x90;                            # EA +imm
 .byte 0x90,0x90,0x90; pop rax; sub rax, 42; push rax; .byte 0x90,0x90,0x90,0x90,0x90,0x90,0x90;                            # EB -imm
-.zero 16*1                                                                                                                 # EC
+.byte 0x90,0x90,0x90; pop rax; shl rax, 42; push rax; .byte 0x90,0x90,0x90,0x90,0x90,0x90,0x90;                            # EC <<imm
 .zero 16*1                                                                                                                 # ED
-.byte 0x90,0x90,0x90,0x90; mov rax, [rbp+42]; push rax; .byte 0x90,0x90,0x90, 0x90,0x90,0x90,0x90;                         # EE
+.byte 0x90; pop rax; shl rax, 8; push 42; pop rcx; or rax, rcx; push rax; .byte 0x90,0x90,0x90;                            # EE <<|imm
 .zero 16*1                                                                                                                 # EF
 .zero 16*16                                                                                                                # F0-FF
 
 hrmc_bytecode:
 ## int main()
-.byte 0xBD,0x00 # setup stack frame
-.byte 0xDC,0x02, 0xD9,0x02, 0x5E,0x10 # get_kernel32() =02
+.byte 0xBD,0x00, 0x5E,0x10 # setup stack frame
+.byte 0xDC,0x02, 0xD9,0x02 # get_kernel32() =02
 .byte 0xD7,0x06, 0xD6,0x02, 0xDC,0x0A, 0xD9,0x06 # GetProcAddress(kernel32, "GetStdHandle") =06
 .byte 0xD7,0x0F, 0xD6,0x02, 0xDC,0x0A, 0xD9,0x0F # GetProcAddress(kernel32, "WriteFile") =0F
 .byte 0xD7,0x0E, 0xD6,0x02, 0xDC,0x0A, 0xD9,0x0E # GetProcAddress(kernel32, "ReadFile") =0E
@@ -411,7 +426,7 @@ hrmc_bytecode:
 .byte 0xE6,0x6F, 0xD7,0x0D, 0xEA,0x05, 0x90,0x00, 0xE6,0x75, 0xD7,0x0D, 0xEA,0x06, 0x90,0x00, 0xE6,0x74, 0xD7,0x0D, 0xEA,0x07, 0x90,0x00 # change "hrmc.dmp" to "hrmc.out"
 .byte 0xBA,0x00, 0xE6,0x00, 0xE6,0x00, 0xE6,0x02, 0xE6,0x00, 0xE6,0x00, 0xE6,0x04, 0xE6,0x1C, 0xA4,0x00, 0xD7,0x0D, 0xB4,0x00, 0xDC,0x0C, 0x59,0xF5 # CreateFileA(filename, GENERIC_WRITE, 0, 0, CREATE_ALWAYS, 0, 0) =F5
 .byte 0xBA,0x00, 0xE6,0x00, 0x57,0xFA, 0x56,0xF2, 0x56,0xF0, 0x56,0xF5, 0xB4,0x00, 0xDC,0x0F # WriteFile(fout,msg,size,&written,0)
-.byte 0xBE,0x00 # return
+.byte 0xE7,0x00 # return
 
 ## void* get_kernel32()
 .byte 0x7E,0x02, 0xBD,0x00, 0x5E,0x10 # 02=&get_kernel32; setup stack frame; reserve 16 stack slots for locals
@@ -474,9 +489,9 @@ hrmc_bytecode:
 .byte 0x56,0xF1, 0x52,0xF7, 0x54,0xF8, 0x5A,0x02, 0xBE,0x00 # @F1 *+@u16:F7 *+@u32:F8 +$02 return
 .byte 0x00,0x00 # end compilation
 
-.fill 1024 - ($ - hrmc_bytecode), 1, 0x90
+.fill 4096 - ($ - hrmc_bytecode), 1, 0x90
 hrmc_dest:
-.zero (1024<<4) # fill so .text section becomes the size it needs to be in virtual memory, doesn't need to take this much on disk but w/e once it self-compiles it's all gucci
+.zero (4096<<4) # fill so .text section becomes the size it needs to be in virtual memory, doesn't need to take this much on disk but w/e once it self-compiles it's all gucci
 
 codesize = . - start
 filesize = . - mzhdr
