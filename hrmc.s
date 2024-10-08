@@ -113,96 +113,86 @@ hdrsize = . - mzhdr
 
 ## Entry Point
 start:
-	lea rbx, [rip+hrmc_table]      # rbx = &hrmc_table
-	lea rsi, [rip+hrmc_bytecode]   # rsi = &hrmc_bytecode
-	lea rdi, [rip+hrmc_dest]       # rdi = &hrmc_dest
-	push rdi
-	push rsi
-	push rbx
+	lea rcx, [rip+hrmc_table]
+	lea rdx, [rip+hrmc_bytecode]
+	lea r8, [rip+hrmc_dest]
 	call compile
-	add rsp, 0x18
 	jmp hrmc_dest
 
 ## hrmc compiler v4
 compile:
-	mov rbx, [rsp+0x08]
-	mov rsi, [rsp+0x10]
-	mov rdi, [rsp+0x18]
+	mov rbx, rcx                # rbx = &hrmc_table
+	mov rsi, rdx                # rsi = &hrmc_bytecode
+	mov rdi, r8                 # rdi = &hrmc_dest
 compile_loop:
-# c = u8[rsi]; d = u8[rsi + 1]; rsi += 2 (c for code, d for data)
-	movzx ecx, byte ptr [rsi]
-	movzx edx, byte ptr [rsi+1]
-	add rsi, 2
-# if c is 0 then we done compiling, jmp to the code we generated
-	cmp cl, 0
+	movzx ecx, byte ptr [rsi]   # c = u8[rsi] (c for code)
+	movzx edx, byte ptr [rsi+1] # d = u8[rsi + 1] (d for data)
+	add rsi, 2                  # rsi += 2
+	test eax, eax               # if c is 0 then finish compiling
 	jne continue_compiling
 	ret
 continue_compiling:
-# r8 = c << 4; r9 = d << 4; r10 = c & 0xF0 (useful for later)
-	mov r8, rcx
-	shl r8, 4
-	mov r9, rdx
+	mov r8, rcx                 # r8 = c & 0xF0
+	and r8, 0xF0
+	mov r9, rdx                 # r9 = d << 4
 	shl r9, 4
-	mov r10, rcx
-	and r10, 0xF0
-# u128[rdi] = u128[hrmc_table + (c << 4)]; rdi += 16
-	movdqa xmm0, [rbx+r8]
+	mov eax, ecx                # u128[rdi] = u128[hrmc_table + (c << 4)]
+	shl eax, 4
+	movdqa xmm0, [rbx+rax]
 	movdqa [rdi], xmm0
-	add rdi, 16
-# if c & 0xF0 is 0xD0 then u32[dest-9] = d << 4
-	cmp r10, 0xD0
-	jne end_of_global_offset_patching
-	mov [rdi-9], r9d
+	add rdi, 16                 # rdi += 16
+
+	cmp cl, 0xDE                # if c is 0xDE then u32[dest-4] = hrmc_table - dest
+	jne end_of_table_restoration
+	mov rax, rbx
+	sub rax, rdi
+	mov [rdi-4], eax
 	jmp compile_loop
-end_of_global_offset_patching:
-# if c & 0xF0 is 0xE0 then u8[dest-9] = d
-	cmp r10, 0xE0
-	jne end_of_const_imm_patching
-	mov [rdi-9], dl
-	jmp compile_loop
-end_of_const_imm_patching:
-# if c is 0xBB then u32[dest-4] = u64[hrmc_table + (d << 4)] - dest
-	cmp cl, 0xBB
+end_of_table_restoration:
+	cmp cl, 0xBB                # if c is 0xBB then u32[dest-4] = u64[hrmc_table + (d << 4)] - dest
 	jne end_of_branch_backwards_patching
 	mov rax, [rbx + r9]
 	sub rax, rdi
 	mov [rdi-4], eax
 	jmp compile_loop
 end_of_branch_backwards_patching:
-# if c & 0xF0 is 0x50 then u32[dest-9] = sign_ext(d) << 3
-	cmp r10, 0x50
+	cmp r8, 0xD0                # if c & 0xF0 is 0xD0 then u32[dest-9] = d << 4
+	jne end_of_global_offset_patching
+	mov [rdi-9], r9d
+	jmp compile_loop
+end_of_global_offset_patching:
+	cmp r8, 0xE0                # if c & 0xF0 is 0xE0 then u8[dest-9] = d
+	jne end_of_const_imm_patching
+	mov [rdi-9], dl
+	jmp compile_loop
+end_of_const_imm_patching:
+	cmp r8, 0x50                # if c & 0xF0 is 0x50 then u32[dest-9] = sign_ext(d) << 3
 	jne end_of_stack_offset_patching
 	movsx eax, dl
 	shl eax, 3
 	mov [rdi-9], eax
 	jmp compile_loop
 end_of_stack_offset_patching:
-# if c & 0xF0 is not 0x70 then continue compile_loop
-	cmp r10, 0x70
-	jne compile_loop
 
-# if c is 0x7E then u64[hrmc_table + (d << 4)] = dest
-	cmp cl, 0x7E
+	cmp r8, 0x70                # if c & 0xF0 is not 0x70 then continue compile_loop
+	jne compile_loop
+	cmp cl, 0x7E                # if c is 0x7E then u64[hrmc_table + (d << 4)] = dest
 	jne end_of_tag_enscribing
 	mov [rbx + r9], rdi
 end_of_tag_enscribing:
-# if c is not 0x7F then continue compile_loop
-	cmp cl, 0x7F
+	cmp cl, 0x7F                # if c is not 0x7F then continue compile_loop
 	jne compile_loop
 	lea r11, [rsi-2] # src_iter
 	mov r12, rdi # dest_iter
 	mov r13, rdx # target_d
 fixup_branch_forwards_loop:
-# src_iter -= 2; c = [src_iter]; d = [src_iter+1]; dest_iter -= 16
-	sub r11, 2
-	mov cl, [r11]
-	mov dl, [r11+1]
-	sub r12, 16
-# if d != target_d then continue fixup_branch_forwards_loop
-	cmp rdx, r13
+	sub r11, 2                  # src_iter -= 2
+	mov cl, [r11]               # c = [src_iter]
+	mov dl, [r11+1]             # d = [src_iter+1]
+	sub r12, 16                 # dest_iter -= 16
+	cmp rdx, r13                # if d != target_d then continue fixup_branch_forwards_loop
 	jne fixup_branch_forwards_loop
-# if c == 0xBF or c == 0xB0 then u32[dest_it-4] = dest - dest_it
-	cmp cl, 0xBF
+	cmp cl, 0xBF                # if c == 0xBF or c == 0xB0 then u32[dest_it-4] = dest - dest_it
 	je fixup
 	cmp cl, 0xB0
 	jne end_of_fixup
@@ -211,8 +201,7 @@ fixup:
 	sub rax, r12
 	mov [r12-4], eax
 end_of_fixup:
-# if c is not 7E then continue fixup_branch_forwards_loop
-	cmp cl, 0x7E
+	cmp cl, 0x7E                # if c is not 7E then continue fixup_branch_forwards_loop
 	jne fixup_branch_forwards_loop
 	jmp compile_loop
 
@@ -243,7 +232,7 @@ hrmc_table:
 .asciz "DefWindowProcA"; .align 16,0                                                                                       # 16 "DefWindowProcA" then actual DefWindowProcA
 .ascii "TranslateMessage";                                                                                                 # 17 "TranslateMessage" then actual TranslateMessage
 .zero 16*1                                                                                                                 # 18
-.zero 16*1                                                                                                                 # 19
+.long 0x10cf0000; .align 16,0                                                                                              # 19 WS_OVERLAPPEDWINDOW|WS_VISIBLE
 .ascii "GetModuleHandleA";                                                                                                 # 1A "GetModuleHandleA" then actual GetModuleHandleA
 .zero 16*1                                                                                                                 # 1B
 .zero 16*1                                                                                                                 # 1C
@@ -367,7 +356,7 @@ pop rax; shl eax, 3; add rax, [rbx+0x76543210]; mov rax,   qword ptr [rax]; push
 .byte 0x90,0x90,0x90,0x90; mov rcx, QWORD PTR [rbx+0x76543210]; pop rax; sub rax, rcx; push rax                            # DB -global
 .byte 0x90,0x90,0x90,0x90; mov rax, [rbx+0x76543210]; call rax; push rax; .byte 0x90,0x90;                                 # DC call global
 .zero 16*1                                                                                                                 # DD
-.zero 16*1                                                                                                                 # DE
+.byte 0x90,0x90,0x90,0x90,0x90,0x90,0x90,0x90,0x90; lea rbx, [rip+0x76543210];                                             # DE restore table ptr
 .zero 16*1                                                                                                                 # DF
 .byte 0x90,0x90,0x90,0x90,0x58,0x48,0x05,0x2a,0x00,0x00,0x00; movzx rax, byte ptr [rax]; push rax;                         # E0 +@u8:imm
 .byte 0x90,0x90,0x90,0x90,0x58,0x48,0x05,0x2a,0x00,0x00,0x00; movsx rax, byte ptr [rax]; push rax;                         # E1 +@i8:imm
@@ -383,7 +372,7 @@ pop rax; shl eax, 3; add rax, [rbx+0x76543210]; mov rax,   qword ptr [rax]; push
 .byte 0x90,0x90,0x90; pop rax; sub rax, 42; push rax; .byte 0x90,0x90,0x90,0x90,0x90,0x90,0x90;                            # EB -imm
 .byte 0x90,0x90,0x90; pop rax; shl rax, 42; push rax; .byte 0x90,0x90,0x90,0x90,0x90,0x90,0x90;                            # EC <<imm
 .zero 16*1                                                                                                                 # ED
-.byte 0x90; pop rax; shl rax, 8; push 42; pop rcx; or rax, rcx; push rax; .byte 0x90,0x90,0x90;                            # EE <<|imm
+pop rax; shl rax, 8; .byte 0x48,0x0d,0x2a,0x0,0x0,0x0, 0x50,0x90,0x90,0x90,0x90;                                           # EE <<|imm
 .zero 16*1                                                                                                                 # EF
 .zero 16*16                                                                                                                # F0-FF
 

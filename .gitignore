@@ -2,6 +2,9 @@
 *.out
 *.dll
 *.obj
+*.ilk
+*.pdb
+*.rdi
 *.o
 *.so
 *.app

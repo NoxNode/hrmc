@@ -27,7 +27,7 @@ Then comes the HRMC bytecode.
 At the top of the files are shell commands to compile/inspect the HRMC compiler executables.
 My vim config has shortcuts to run a command at line 1-9 and put the output in the prev/new window.
 
-`ref_code` contains some C code that were old attemps at a simple C compiler that I often used as references.
+`ref_code` contains some C code that I often used as references.
 `link_win` in `min_common_win.c` is probably most helpful for understanding the whole `get_kernel32` `GetProcAddress` stuff.
 
 ## Design
@@ -68,7 +68,10 @@ The following is an explantion of the design.
 	- 6/9 for load and store as u64 (storing to an imm makes no sense so E9 is load from gs reg
 	cuz 9 looks like g in some fonts - gs reg is used for getting kernel32 in order to call Win32 API funcs)
 	- 7 for addr-of (& is on the 7 key - E7 is return imm as in rET)
-	- C for call (I'm thinking of making EC be imm shift left for easy large imm creation)
+	- C for call (EC is imm shift left for easy large imm creation)
+	- EE is extend immediate aka `<<8` then `|imm` - also for easy large imm creation
+	- DE is restore data table ptr - for functions callable from external sources
+	- 5E is reserve stack space
 
 - So `5502` does `*+@i32` with stack slot 2 aka `i32_array_passed_as_first_param[index_at_top_of_stack]`
 	- Stack slot 2 is the first param because 0 is rbp and 1 is the return address. -1 would be the first local variable.

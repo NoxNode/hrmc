@@ -1,14 +1,16 @@
-//gcc ref_code/testwin.c && ./a.exe
-#include <windows.h>
-#include <stdio.h>
+// cl  winasm.c -nologo -Oi -GS- -Gs9999999 -link -subsystem:windows -nodefaultlib -stack:0x100000,0x100000 -machine:x64 -entry:"_start"
+//gcc -g testwin.c && ./a.exe
+//#include <windows.h>
+//#include <stdio.h>
+#include "min_common_win.c"
 
-LRESULT CALLBACK Win32EventHandler(HWND window, UINT msg, WPARAM wp, LPARAM lp) {
+u64* Win32EventHandler(void* window, u32 msg, u32* wp, u64* lp) {
 	if(msg == WM_DESTROY)
 		PostQuitMessage(0);
 	return DefWindowProcA(window, msg, wp, lp);
 }
 
-int CALLBACK WinMain(HINSTANCE I, HINSTANCE PI, LPSTR C, int S) {
+int WinMain(void* I, void* PI, void* C, int S) {
 	// register class
 	WNDCLASSA winclass = {};
 	winclass.lpfnWndProc = Win32EventHandler;
