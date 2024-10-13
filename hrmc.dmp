@@ -438,6 +438,7 @@ e9 22 ff ff ff       	# jmp    0x400198                             400271:
 BD00 5E20 # setup stack frame
 DC02 D902 # get_kernel32() =02
 D706 D602 DC0A D906 # GetProcAddress(kernel32, "GetStdHandle") =06
+D706 D602 DC0A D906 # GetProcAddress(kernel32, "GetStdHandle") =06
 D70F D602 DC0A D90F # GetProcAddress(kernel32, "WriteFile") =0F
 D70E D602 DC0A D90E # GetProcAddress(kernel32, "ReadFile") =0E
 D70C D602 DC0A D90C # GetProcAddress(kernel32, "CreateFileA") =0C
@@ -478,6 +479,7 @@ E66F D70D EA05 9000 E675 D70D EA06 9000 E674 D70D EA07 9000 # change "hrmc.dmp" 
 BA00 E600 E600 E602 E600 E600 E604 E61C A400 D70D B400 DC0C 59F5 # CreateFileA(filename, GENERIC_WRITE, 0, 0, CREATE_ALWAYS, 0, 0) =F5
 BA00 E600 57FA 56F2 56F0 56F5 B400 DC0F # WriteFile(fout,msg,size,&written,0)
 
+# TODO: use actual GetProcAddress - need to in order to get actual DefWindowProcA
 D710 D602 DC0A D910 # GetProcAddress(kernel32, "LoadLibraryA") =10
 BA00 D711 B100 DC10 D911 # LoadLibraryA("user32.dll") =11
 D71A D602 DC0A D91A # GetProcAddress(kernel32, "GetModuleHandleA") =1A
@@ -510,10 +512,10 @@ E700 # return
 
 7E1F DE00 BD00 # 1E=&Win32EventHandler
 7E71 56FE E602 CE00 B071 # msg WM_DESTROY == ?
-#     BA00 E600 B100 DC15 # PostQuitMessage(0)
+     BA00 E600 B100 DC15 # PostQuitMessage(0)
 7F71
-BA00 56FC 56FD 56FE 56FF B400 DC16 BE00 # return DefWindowProcA(window, msg, wp, lp)
-#E601 BE00 # return 1
+#BA00 56FC 56FD 56FE 56FF B400 DC16 BE00 # return DefWindowProcA(window, msg, wp, lp)
+E601 BE00 # return 1
 
 7E0B BD00 # 0B=&memset(dest, val, count); setup stack frame
 5602 59FF # bytes = dest

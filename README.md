@@ -195,3 +195,11 @@ The mnemonic/reasoning for all the entries in the remaining op groups (Ax, Bx, C
 
 	It's fun.
 
+## Notes
+
+for better handling of data with less bounds and using the data in the hrmc table more like module pointers
+	can maybe just do the `*+@` ops to access stuff like a SoA
+	and can use the 3x ops to access stuff like AoS
+	so we have 32 possible modules to point to across 0x and 1x
+	and if we need to one of those modules could be another 256 entry lookup table of pointers
+
