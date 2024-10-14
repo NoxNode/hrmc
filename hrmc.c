@@ -1,5 +1,5 @@
 // cl hrmc.c -nologo -Oi -Zi -GS- -Gs9999999 -link -subsystem:windows -nodefaultlib -stack:0x100000,0x100000 -machine:x64 -entry:"_start" && ./hrmc.exe ; echo $?
-//gcc hrmc.c -o hrmc.exe -O0 -g -w -mwindows -m64 -nostdlib -Wl,-e_start
+//gcc hrmc.c -o hrmc.exe -O0 -g -w -mwindows -m64 -nostdlib -Wl,-e_start && ./hrmc.exe ; echo $?
 /* hrmc.c might turn into a C implementaiton of the hrmc compiler/editor
 for now I just used it to debug what was going on with DefWindowProcA and it helped
 */
@@ -528,6 +528,7 @@ https://hero.handmade.network/forums/code-discussion/t/129-howto_-_building_with
 https://www.ired.team/offensive-security/code-injection-process-injection/finding-kernel32-base-and-function-addresses-in-shellcode
 https://en.wikipedia.org/wiki/Win32_Thread_Information_Block
 https://stackoverflow.com/questions/10810203/what-is-the-fs-gs-register-intended-for
+https://learn.microsoft.com/en-us/windows/win32/debug/pe-format#export-address-table
 */
 void* get_kernel32() {
 	u8* peb = (u8*)__readgsqword(0x60); // find kernel32 in TEB->PEB->Ldr->ModuleList
@@ -552,25 +553,44 @@ void* get_kernel32() {
 	return 0; // not found
 }
 
-void* GetProcAddress(u8* handle, char* proc_name) {
+void* GetProcAddress(u8* handle, char* proc_name, void* (*LoadLibraryA)(char*)) {
 	u8* pe_hdr = handle + *(u32*)(handle+0x3C);
 	u8* exports_table = handle + *(u32*)(pe_hdr+0x18+0x70);
 	u32* names_table = handle + *(u32*)(exports_table+0x20);
-	i32 low = 0;
-	i32 high = *(i32*)(exports_table+0x18);
-	i32 index;
-	i32 comparison = 0;
-	do {
-		if(comparison > 0) low = index + 1;
-		if(comparison < 0) high = index - 1;
-		index = (high + low) / 2;
-		char* cur_proc_name = handle + names_table[index];
-		comparison = strcmp(proc_name, cur_proc_name);
-	} while(comparison != 0 && low != high);
-	if(strcmp(proc_name, handle+names_table[index]) != 0) return 0;
+	i64 index;
+	if(proc_name[0] == '#') { // TODO: test this path
+		parse_based_int(proc_name, 1, &index, 10);
+	}
+	else {
+		i64 low = 0;
+		i64 high = *(i32*)(exports_table+0x18);
+		i64 comparison = 0;
+		do {
+			if(comparison > 0) low = index + 1;
+			if(comparison < 0) high = index - 1;
+			index = (high + low) / 2;
+			char* cur_proc_name = handle + names_table[index];
+			comparison = strcmp(proc_name, cur_proc_name);
+		} while(comparison != 0 && low != high);
+		if(strcmp(proc_name, handle+names_table[index]) != 0)
+			return 0;
+	}
 	u16* ordinal_table = handle + *(u32*)(exports_table+0x24);
 	u32* export_address_table = handle + *(u32*)(exports_table+0x1C);
-	return handle + export_address_table[ordinal_table[index]];
+	u8* addr = handle + export_address_table[ordinal_table[index]];
+	u32 exports_table_size = *(u32*)(pe_hdr+0x18+0x70+4);
+	if(addr < exports_table || addr >= exports_table + exports_table_size)
+		return addr;
+	char* forward_name = addr;
+	u32 dotIdx = 0;
+	while(forward_name[dotIdx] != '.') dotIdx += 1;
+	char dll_name[256] = {0};
+	memcpy(dll_name, forward_name, dotIdx+1);
+	dll_name[dotIdx+1] = 'd';
+	dll_name[dotIdx+2] = 'l';
+	dll_name[dotIdx+3] = 'l';
+	void* other_handle = LoadLibraryA(dll_name);
+	return GetProcAddress(other_handle, forward_name+dotIdx+1, LoadLibraryA);
 }
 
 void* (*VirtualAlloc)         (void* lpAddress, u64 dwSize, u32 flAllocationType, u32 flProtect);
@@ -733,38 +753,27 @@ u64* Win32EventHandler(void* window, u32 msg, u32* wp, u64* lp) {
 }
 
 void _start() {
+	char* forward_name;
 	void* kernel32 = get_kernel32();
-	VirtualAlloc = GetProcAddress(kernel32, "VirtualAlloc");
-	GetStdHandle = GetProcAddress(kernel32, "GetStdHandle");
-	CreateFileA = GetProcAddress(kernel32, "CreateFileA");
-	ReadFile = GetProcAddress(kernel32, "ReadFile");
-	WriteFile = GetProcAddress(kernel32, "WriteFile");
-	CloseHandle = GetProcAddress(kernel32, "CloseHandle");
-	GetModuleHandleA = GetProcAddress(kernel32, "GetModuleHandleA");
-	LoadLibraryA = GetProcAddress(kernel32, "LoadLibraryA");
+	LoadLibraryA = GetProcAddress(kernel32, "LoadLibraryA", 0);
+	VirtualAlloc = GetProcAddress(kernel32, "VirtualAlloc", LoadLibraryA);
+	GetStdHandle = GetProcAddress(kernel32, "GetStdHandle", LoadLibraryA);
+	CreateFileA = GetProcAddress(kernel32, "CreateFileA", LoadLibraryA);
+	ReadFile = GetProcAddress(kernel32, "ReadFile", LoadLibraryA);
+	WriteFile = GetProcAddress(kernel32, "WriteFile", LoadLibraryA);
+	CloseHandle = GetProcAddress(kernel32, "CloseHandle", LoadLibraryA);
+	GetModuleHandleA = GetProcAddress(kernel32, "GetModuleHandleA", LoadLibraryA);
 	void* user32 = LoadLibraryA("user32.dll");
-	RegisterClassA = GetProcAddress(user32, "RegisterClassA");
-	CreateWindowExA = GetProcAddress(user32, "CreateWindowExA");
-	PostQuitMessage = GetProcAddress(user32, "PostQuitMessage");
-	PeekMessageA = GetProcAddress(user32, "PeekMessageA");
-	TranslateMessage = GetProcAddress(user32, "TranslateMessage");
-	DispatchMessageA = GetProcAddress(user32, "DispatchMessageA");
-	GetFileAttributesExA = GetProcAddress(kernel32, "GetFileAttributesExA");
-	GetCommandLineA = GetProcAddress(kernel32, "GetCommandLineA");
-	ExitProcess = GetProcAddress(kernel32, "ExitProcess");
-
-	// apparently there's multiple forms of exported functions
-	// some are just links to the actual definition in another dll
-	// DefWindowProcA is an example of this
-	// in the docs it says it's in user32.dll
-	// but on my machine it's actually defined in ntdll
-	// but there's a link from user32.dll's export table to ntdll's actual definition of it under a diff name
-	// so we either need to be able to parse these links because apparently they need special treatment
-	// or we use kernel32's GetProcAddress
-	void* ntdll = LoadLibraryA("ntdll.dll");
-	DefWindowProcA = GetProcAddress(ntdll, "NtdllDefWindowProc_A");
-	//void* (*GetProcAddressA)(void*,char*) = GetProcAddress(kernel32, "GetProcAddress");
-	//DefWindowProcA = GetProcAddressA(user32, "DefWindowProcA");
+	RegisterClassA = GetProcAddress(user32, "RegisterClassA", LoadLibraryA);
+	CreateWindowExA = GetProcAddress(user32, "CreateWindowExA", LoadLibraryA);
+	PostQuitMessage = GetProcAddress(user32, "PostQuitMessage", LoadLibraryA);
+	PeekMessageA = GetProcAddress(user32, "PeekMessageA", LoadLibraryA);
+	TranslateMessage = GetProcAddress(user32, "TranslateMessage", LoadLibraryA);
+	DispatchMessageA = GetProcAddress(user32, "DispatchMessageA", LoadLibraryA);
+	GetFileAttributesExA = GetProcAddress(kernel32, "GetFileAttributesExA", LoadLibraryA);
+	GetCommandLineA = GetProcAddress(kernel32, "GetCommandLineA", LoadLibraryA);
+	ExitProcess = GetProcAddress(kernel32, "ExitProcess", LoadLibraryA);
+	DefWindowProcA = GetProcAddress(user32, "DefWindowProcA", LoadLibraryA);
 
 	// register class
 	WNDCLASSA winclass = {0};
