@@ -438,7 +438,6 @@ e9 22 ff ff ff       	# jmp    0x400198                             400271:
 BD00 5E20 # setup stack frame
 DC02 D902 # get_kernel32() =02
 D706 D602 DC0A D906 # GetProcAddress(kernel32, "GetStdHandle") =06
-D706 D602 DC0A D906 # GetProcAddress(kernel32, "GetStdHandle") =06
 D70F D602 DC0A D90F # GetProcAddress(kernel32, "WriteFile") =0F
 D70E D602 DC0A D90E # GetProcAddress(kernel32, "ReadFile") =0E
 D70C D602 DC0A D90C # GetProcAddress(kernel32, "CreateFileA") =0C
