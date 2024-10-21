@@ -1,7 +1,7 @@
 // cl hrmc.c -nologo -Oi -Zi -GS- -Gs9999999 -link -subsystem:windows -nodefaultlib -stack:0x100000,0x100000 -machine:x64 -entry:"_start" && ./hrmc.exe ; echo $?
 //gcc hrmc.c -o hrmc.exe -O0 -g -w -mwindows -m64 -nostdlib -Wl,-e_start && ./hrmc.exe ; echo $?
-/* hrmc.c might turn into a C implementaiton of the hrmc compiler/editor
-for now I just used it to debug what was going on with DefWindowProcA and it helped
+/* hrmc.c started as a thing to just help debug Win32 oddities.
+It's now turned into a reference implementation of the code editor that I plan on eventually having in HRMC
 */
 
 typedef          char      i8;
