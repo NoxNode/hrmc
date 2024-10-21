@@ -685,10 +685,10 @@ u32 namecmp(char* a, char* b) {
 	if(alen != blen) return alen - blen;
 	return memcmp(a, b, alen);
 }
-u32 index_of_char(char* s, u32 i, char* chars, u32 instance, i32 dir) {
+u32 index_of_char(char* s, i32 i, char* chars, u32 instance, i32 dir) {
 	u32 last_index = i;
 	u32 cur_instance = 0;
-	while(s[i]) {
+	while((i > 0 || dir > 0) && s[i]) {
 		for(u32 j = 0; j < strlen(chars); j += 1) {
 			if(s[i] != chars[j] && !(chars[j] == 'A' && (isalpha(s[i]) || s[i] == '_')))
 				continue;

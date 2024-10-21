@@ -74,6 +74,35 @@ void assert(int value) {
 }
 #define offsetof(t, f) (&(((t *)0)->f))
 
+// below are from ctype.h
+int isspace(int c) {
+	return c == ' ' || c == '\t' || c == '\n' || c == '\r';// || c == '\v' || c == '\f';
+}
+int isdigit(int c) {
+	return c >= '0' && c <= '9';
+}
+int isxdigit(int c) {
+	return isdigit(c) || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F');
+}
+int isalpha(int c) {
+	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');
+}
+int isalnum(int c) {
+	return isalpha(c) || isdigit(c);
+}
+int ispunct(int c) {
+	return !isalnum(c) && c >= '!' && c <= '~';
+	//return (c >= '!' && c <= '/') || (c >= ':' && c <= '@') || (c >= '[' && c <= '`') || (c >= '{' && c <= '~');
+}
+int toupper(int c) {
+	if(c <= 'Z') return c;
+	return c - ('a' - 'A');
+}
+int tolower(int c) {
+	if(c >= 'a') return c;
+	return c + ('a' - 'A');
+}
+
 // stack check and floating point stuff some compilers need
 void __chkstk() {}
 void ___chkstk_ms() {}
@@ -143,7 +172,7 @@ struct arena {
 	u8* mem;
 	u32 cap;
 	u32 len;
-	u32 i;
+	i32 i;
 	u32 reserved_cap;
 };
 void* arena_push(arena* ar, u32 size) {
@@ -408,6 +437,29 @@ typedef struct PAINTSTRUCT {
 #define WM_SYSKEYDOWN 0x0104
 #define WM_SYSKEYUP 0x0105
 #define PM_REMOVE 0x0001
+
+#define WM_MOUSEFIRST 0x0200
+#define WM_MOUSEMOVE 0x0200
+#define WM_LBUTTONDOWN 0x0201
+#define WM_LBUTTONUP 0x0202
+#define WM_LBUTTONDBLCLK 0x0203
+#define WM_RBUTTONDOWN 0x0204
+#define WM_RBUTTONUP 0x0205
+#define WM_RBUTTONDBLCLK 0x0206
+#define WM_MBUTTONDOWN 0x0207
+#define WM_MBUTTONUP 0x0208
+#define WM_MBUTTONDBLCLK 0x0209
+#define WM_MOUSEWHEEL 0x020A
+#define WM_XBUTTONDOWN 0x020B
+#define WM_XBUTTONUP 0x020C
+#define WM_XBUTTONDBLCLK 0x020D
+#if _WIN32_WINNT >= 0x0600
+#define WM_MOUSEHWHEEL 0x020e
+#endif
+#define WM_MOUSEHOVER 0x02A1
+#define WM_MOUSELEAVE 0x02A3
+#define WM_NCMOUSEHOVER 0x02A0
+#define WM_NCMOUSELEAVE 0x02A2
 
 // Window Style stuff
 #define WS_OVERLAPPED       (0x00000000)
@@ -919,7 +971,7 @@ u32 file_read(char* filename, u8* in_buffer, u32 in_size) {
 	if(fin == (void*)INVALID_HANDLE_VALUE)
 		return 0;
 	u32 bytes_read;
-	if(!ReadFile(fin, in_buffer, in_size, &bytes_read, 0) || bytes_read != in_size)
+	if(!ReadFile(fin, in_buffer, in_size, &bytes_read, 0))
 		return 0;
 	CloseHandle(fin);
 	return bytes_read;
@@ -1128,34 +1180,153 @@ u8 rasters[][13] = {
 {0x00, 0x00, 0xf0, 0x18, 0x18, 0x18, 0x1c, 0x0f, 0x1c, 0x18, 0x18, 0x18, 0xf0},
 {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x06, 0x8f, 0xf1, 0x60, 0x00, 0x00, 0x00}
 };
+#define KEY_MODIFIER_SHIFT (1 << 0)
+#define KEY_MODIFIER_CTRL  (1 << 1)
+#define KEY_MODIFIER_ALT   (1 << 2)
+#define KEY_MODIFIER_FN    (1 << 3)
+#define KEY_MODIFIER_SUPER (1 << 4)
+#define MIN(a,b) (((a)<(b))?(a):(b))
+#define MAX(a,b) (((a)>(b))?(a):(b))
+
+u32 index_of_char(char* s, i32 i, char* chars, u32 instance, i32 dir) {
+	u32 last_index = i;
+	u32 cur_instance = 0;
+	while((i >= 0 || dir > 0) && s[i]) {
+		for(u32 j = 0; j < strlen(chars); j += 1) {
+			if(s[i] != chars[j] && !(chars[j] == 'A' && (isalpha(s[i]) || s[i] == '_')))
+				continue;
+			cur_instance += 1;
+			if(instance == cur_instance)
+				return i;
+			last_index = i;
+		}
+		i += dir;
+	}
+	if(i < 0) return i;
+	return last_index;
+}
 
 arena text_arena;
+u8 modifiers_held = 0;
+i32 cursor_xoff = 1;
+u8 prev_char = 0;
+/*
+VK_OEM_1 0xBA 186 ;
+VK_OEM_PLUS 0xBB 187 =
+VK_OEM_COMMA 0xBC 188 ,
+VK_OEM_MINUS 0xBD 189 -
+VK_OEM_PERIOD 0xBE 190 .
+VK_OEM_2 0xBF 191 /
+VK_OEM_3 0xC0 192 `
+VK_OEM_4 0xDB 219 [
+VK_OEM_5 0xDC 220 \
+VK_OEM_6 0xDD 221 ]
+VK_OEM_7 0xDE 222 '
+*/
 
 u64 Win32EventHandler(void* window, u32 msg, u64 wp, u64 lp) {
 	if(msg == WM_DESTROY || msg == WM_CLOSE)
 		ExitProcess(0);
 	u64 keycode = wp;
-	//u64 alt_was_down  = lp & (1 << 29);
 	//u64 was_down = lp & (1 << 30);
 	//u64 is_down  = lp & (1 << 31);
-	u32 modifiers = 0;
+	u64 alt_was_down  = lp & (1 << 29);
+	if(alt_was_down) modifiers_held |= KEY_MODIFIER_ALT;
+	else             modifiers_held &= ~KEY_MODIFIER_ALT;
 	if(msg == WM_SYSKEYDOWN || msg == WM_KEYDOWN) {
-		if(modifiers == 0 && (keycode == ' ' || (keycode >= 'A' && keycode <= 'Z') || (keycode >= '0' && keycode <= '9'))) {
-			arena_gap_splice(&text_arena, text_arena.i, 0, &keycode, 1);
+		prev_char = keycode;
+		u8 character = 0;
+		i32 new_i = text_arena.i;
+		i32 del = 0;
+		i32 preserve_cursor_xoff = 0;
+		arena_gap_splice(&text_arena, text_arena.len, 0, &character, 0); // make buffer contiguous
+		i32 prev_newline = index_of_char(text_arena.mem, new_i - 1, "\n", 1, -1);
+		i32 prev_prev_newline = index_of_char(text_arena.mem, prev_newline - 1, "\n", 1, -1);
+		i32 next_newline = index_of_char(text_arena.mem, new_i, "\n", 1, 1);
+		i32 next_next_newline = index_of_char(text_arena.mem, next_newline + 1, "\n", 1, 1);
+		i32 prev_word_end = index_of_char(text_arena.mem, new_i - 1, "A", 1, -1);
+		i32 prev_word_start = index_of_char(text_arena.mem, prev_word_end - 1, " \t\n", 1, -1);
+		i32 next_word_start = index_of_char(text_arena.mem, new_i + 1, "A", 1, 1);
+		i32 next_word_end = index_of_char(text_arena.mem, next_word_start + 1, " \t\n", 1, 1);
+		if(keycode == VK_SHIFT)                      modifiers_held |= KEY_MODIFIER_SHIFT;
+		if(keycode == VK_CONTROL)                    modifiers_held |= KEY_MODIFIER_CTRL;
+
+		if(!modifiers_held) {
+			     if(keycode == VK_BACK)       { del = 1; }
+			else if(keycode == VK_DELETE)     { del = 1; new_i += del; }
+			else if(keycode == VK_RETURN)     character = '\n';
+			else if(keycode == VK_TAB)        character = '\t';
+			else if(keycode == VK_OEM_1)      character = ';';
+			else if(keycode == VK_OEM_PLUS)   character = '=';
+			else if(keycode == VK_OEM_COMMA)  character = ',';
+			else if(keycode == VK_OEM_MINUS)  character = '-';
+			else if(keycode == VK_OEM_PERIOD) character = '.';
+			else if(keycode == VK_OEM_2)      character = '/';
+			else if(keycode == VK_OEM_3)      character = '`';
+			else if(keycode == VK_OEM_4)      character = '[';
+			else if(keycode == VK_OEM_5)      character = '\\';
+			else if(keycode == VK_OEM_6)      character = ']';
+			else if(keycode == VK_OEM_7)      character = '\'';
+			else if(keycode == ' ')           character = keycode;
+			else if(isdigit(keycode))         character = keycode;
+			else if(isalpha(keycode))         character = keycode + 'a' - 'A';
 		}
-		if(keycode == VK_BACK) {
-			arena_gap_splice(&text_arena, text_arena.i, 1, &keycode, 0);
+
+		if(modifiers_held == KEY_MODIFIER_SHIFT) {
+			     if(isalpha(keycode))         character = keycode;
+			else if(keycode == VK_OEM_1)      character = ':';
+			else if(keycode == VK_OEM_PLUS)   character = '+';
+			else if(keycode == VK_OEM_COMMA)  character = '<';
+			else if(keycode == VK_OEM_MINUS)  character = '_';
+			else if(keycode == VK_OEM_PERIOD) character = '>';
+			else if(keycode == VK_OEM_2)      character = '?';
+			else if(keycode == VK_OEM_3)      character = '~';
+			else if(keycode == VK_OEM_4)      character = '{';
+			else if(keycode == VK_OEM_5)      character = '|';
+			else if(keycode == VK_OEM_6)      character = '}';
+			else if(keycode == VK_OEM_7)      character = '\"';
+			else if(keycode == '1')           character = '!';
+			else if(keycode == '2')           character = '@';
+			else if(keycode == '3')           character = '#';
+			else if(keycode == '4')           character = '$';
+			else if(keycode == '5')           character = '%';
+			else if(keycode == '6')           character = '^';
+			else if(keycode == '7')           character = '&';
+			else if(keycode == '8')           character = '*';
+			else if(keycode == '9')           character = '(';
+			else if(keycode == '0')           character = ')';
 		}
-		if(keycode == VK_RETURN) {
-			char newline = '\n';
-			arena_gap_splice(&text_arena, text_arena.i, 0, &newline, 1);
+
+		if(modifiers_held == KEY_MODIFIER_CTRL) {
+			     if(keycode == VK_BACK)   { del = new_i - prev_word_start; }
+			else if(keycode == VK_DELETE) { del = next_word_end - new_i; new_i += del; }
 		}
-		if(keycode == VK_TAB) {
-			char tab = '\t';
-			arena_gap_splice(&text_arena, text_arena.i, 0, &tab, 1);
+		if(!(modifiers_held & KEY_MODIFIER_CTRL)) {
+			     if(keycode == VK_LEFT)       { new_i -= 1; }
+			else if(keycode == VK_RIGHT)      { new_i += 1; }
+			else if(keycode == VK_UP)         { new_i = prev_prev_newline + MAX(1, MIN(cursor_xoff, prev_newline - prev_prev_newline)); preserve_cursor_xoff = 1; }
+			else if(keycode == VK_DOWN)       { new_i = next_newline      + MAX(1, MIN(cursor_xoff, next_next_newline - next_newline)); preserve_cursor_xoff = 1; }
+			else if(keycode == VK_HOME)       { new_i = prev_newline + 1; }
+			else if(keycode == VK_END)        { new_i = next_newline; cursor_xoff = 99999; preserve_cursor_xoff = 1; }
 		}
+		if(modifiers_held & KEY_MODIFIER_CTRL) {
+			     if(keycode == VK_LEFT)   { new_i = prev_word_start; }
+			else if(keycode == VK_RIGHT)  { new_i = next_word_end; }
+			else if(keycode == VK_UP)     { new_i = prev_prev_newline + MAX(1, MIN(cursor_xoff, prev_newline - prev_prev_newline)); preserve_cursor_xoff = 1; }
+			else if(keycode == VK_DOWN)   { new_i = next_newline      + MAX(1, MIN(cursor_xoff, next_next_newline - next_newline)); preserve_cursor_xoff = 1; }
+			else if(keycode == VK_HOME)   { new_i = 0; }
+			else if(keycode == VK_END)    { new_i = text_arena.len; cursor_xoff = 99999; preserve_cursor_xoff = 1; }
+		}
+
+		if(new_i < 0) { new_i = 0; cursor_xoff = 1; preserve_cursor_xoff = 1; }
+		arena_gap_splice(&text_arena, new_i, del, &character, !!character);
+		if(!preserve_cursor_xoff) cursor_xoff = text_arena.i - index_of_char(text_arena.mem, text_arena.i - 1, "\n", 1, -1);
 	}
 	if(msg == WM_SYSKEYUP || msg == WM_KEYUP) {
+		if(keycode == VK_SHIFT)   modifiers_held &= ~KEY_MODIFIER_SHIFT;
+		if(keycode == VK_CONTROL) modifiers_held &= ~KEY_MODIFIER_CTRL;
+	}
+	if(msg == WM_MOUSEMOVE) {
 	}
 	return DefWindowProcA(window, msg, wp, lp);
 }
@@ -1190,9 +1361,11 @@ void _start() {
 
 	u32* pixel_data = mem_alloc(width*height*4);
 	u32 tick = 0;
-	text_arena.cap = 1024*1024;
+	text_arena.cap = 5*1024*1024;
 	text_arena.len = text_arena.i = 0;
 	text_arena.mem = mem_alloc(text_arena.cap);
+	text_arena.len = text_arena.i = file_read("hrmc.c", text_arena.mem, text_arena.cap);
+	arena_gap_splice(&text_arena, 0, 0, 0, 0);
 
 	char str[] = "the quick brown fox jumped over the lazy dog `1234567890-=~!@#$%^&*()_+";
 	while(1) {
@@ -1204,6 +1377,7 @@ void _start() {
 		}
 		tick += 1;
 
+		// TODO: pageup pagedown, shift selection, copy paste, undo redo, etc
 		// TODO: audio
 		// TODO: load htmc.dmp from file
 		// parse name comments
@@ -1216,44 +1390,60 @@ void _start() {
 		u32* pixel = pixel_data;
 		for(int y = 0; y < height; y++) {
 			for(int x = 0; x < width; x++) {
-				*pixel++ = (((x+tick*2)%255) << 8) | ((y+tick)%255);
-				//*pixel++ = 0;
+				//*pixel++ = (((x+tick*2)%255) << 8) | ((y+tick)%255);
+				*pixel++ = 0;
 			}
 		}
 
-		//char* str2 = int2str(tick, str);
-		//char* str2 = str;
-		char* str2 = text_arena.mem;
-		int yoff = 200;
+		//char digits[16] = {0};
+		//char* yo = int2str(cursor_xoff, digits);
+		//memcpy(text_arena.mem, yo, strlen(yo));
+
+		int yoff = 13;
 		int xoff = 0;
+		int cursor_xoff = xoff;
+		int cursor_yoff = yoff;
 		int xstride = 10;
 		int ystride = 15;
 		for(int i = 0; i < text_arena.len; i++) {
-			if(str2[i] == '\n') {
+			u8 character = text_arena.mem[i];
+			if(i >= text_arena.i) character = text_arena.mem[i + (text_arena.cap - text_arena.len)];
+			if(i == text_arena.i) {
+				cursor_xoff = xoff;
+				cursor_yoff = yoff;
+			}
+			if(character == '\n') {
 				yoff += ystride;
 				xoff = 0;
 				continue;
 			}
-			if(str2[i] == '\t') {
-				xoff += xstride * 4;
+			if(character == '\t') {
+				xoff += xstride * 1;
 				continue;
 			}
-			u8* raster = rasters[str2[i] - 0x20];
+			u8* raster = rasters[character - 0x20];
 			for(int y = 0; y < 13; y++) {
+				if((13-y)+yoff >= monitor_rect.bottom) continue;
 				for(int x = 0; x < xstride; x++) {
+					if((8-x)+xoff >= monitor_rect.right) continue;
 					if(raster[y] & (1 << x)) pixel_data[((13-y)+yoff)*width+((8-x)+xoff)] = -1;
 					else                     pixel_data[((13-y)+yoff)*width+((8-x)+xoff)] = 0;
 				}
 			}
+			if(yoff >= monitor_rect.bottom) break;
 			xoff += xstride;
 		}
+		if(text_arena.i == text_arena.len) {
+			cursor_xoff = xoff;
+			cursor_yoff = yoff;
+		}
 		for(int y = 0; y < 13; y++) {
-			pixel_data[((13-y)+yoff)*width+((8)+xoff)] = -1;
-			pixel_data[((13-y)+yoff)*width+((0)+xoff)] = -1;
+			pixel_data[((13-y)+cursor_yoff)*width+((8)+cursor_xoff)] = -1;
+			pixel_data[((13-y)+cursor_yoff)*width+((0)+cursor_xoff)] = -1;
 		}
 		for(int x = 0; x < xstride; x++) {
-			pixel_data[((13)+yoff)*width+((8-x)+xoff)] = -1;
-			pixel_data[((0)+yoff)*width+((8-x)+xoff)] = -1;
+			pixel_data[((13)+cursor_yoff)*width+((8-x)+cursor_xoff)] = -1;
+			pixel_data[((0)+cursor_yoff)*width+((8-x)+cursor_xoff)] = -1;
 		}
 
 		// draw pixel data to screen
