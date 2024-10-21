@@ -1240,16 +1240,16 @@ u64 Win32EventHandler(void* window, u32 msg, u64 wp, u64 lp) {
 		i32 del = 0;
 		i32 preserve_cursor_xoff = 0;
 		arena_gap_splice(&text_arena, text_arena.len, 0, &character, 0); // make buffer contiguous
-		i32 prev_newline = index_of_char(text_arena.mem, new_i - 1, "\n", 1, -1);
-		i32 prev_prev_newline = index_of_char(text_arena.mem, prev_newline - 1, "\n", 1, -1);
-		i32 next_newline = index_of_char(text_arena.mem, new_i, "\n", 1, 1);
-		i32 next_next_newline = index_of_char(text_arena.mem, next_newline + 1, "\n", 1, 1);
-		i32 prev_word_end = index_of_char(text_arena.mem, new_i - 1, "A", 1, -1);
-		i32 prev_word_start = index_of_char(text_arena.mem, prev_word_end - 1, " \t\n", 1, -1);
-		i32 next_word_start = index_of_char(text_arena.mem, new_i + 1, "A", 1, 1);
-		i32 next_word_end = index_of_char(text_arena.mem, next_word_start + 1, " \t\n", 1, 1);
-		if(keycode == VK_SHIFT)                      modifiers_held |= KEY_MODIFIER_SHIFT;
-		if(keycode == VK_CONTROL)                    modifiers_held |= KEY_MODIFIER_CTRL;
+		i32 prev_newline      = index_of_char(text_arena.mem, new_i - 1,           "\n",    1, -1);
+		i32 prev_prev_newline = index_of_char(text_arena.mem, prev_newline - 1,    "\n",    1, -1);
+		i32 next_newline      = index_of_char(text_arena.mem, new_i,               "\n",    1,  1);
+		i32 next_next_newline = index_of_char(text_arena.mem, next_newline + 1,    "\n",    1,  1);
+		i32 prev_word_end     = index_of_char(text_arena.mem, new_i - 1,           "A",     1, -1);
+		i32 prev_word_start   = index_of_char(text_arena.mem, prev_word_end - 1,   " \t\n", 1, -1);
+		i32 next_word_start   = index_of_char(text_arena.mem, new_i + 1,           "A",     1,  1);
+		i32 next_word_end     = index_of_char(text_arena.mem, next_word_start + 1, " \t\n", 1,  1);
+		if(keycode == VK_SHIFT)   modifiers_held |= KEY_MODIFIER_SHIFT;
+		if(keycode == VK_CONTROL) modifiers_held |= KEY_MODIFIER_CTRL;
 
 		if(!modifiers_held) {
 			     if(keycode == VK_BACK)       { del = 1; }
@@ -1302,12 +1302,12 @@ u64 Win32EventHandler(void* window, u32 msg, u64 wp, u64 lp) {
 			else if(keycode == VK_DELETE) { del = next_word_end - new_i; new_i += del; }
 		}
 		if(!(modifiers_held & KEY_MODIFIER_CTRL)) {
-			     if(keycode == VK_LEFT)       { new_i -= 1; }
-			else if(keycode == VK_RIGHT)      { new_i += 1; }
-			else if(keycode == VK_UP)         { new_i = prev_prev_newline + MAX(1, MIN(cursor_xoff, prev_newline - prev_prev_newline)); preserve_cursor_xoff = 1; }
-			else if(keycode == VK_DOWN)       { new_i = next_newline      + MAX(1, MIN(cursor_xoff, next_next_newline - next_newline)); preserve_cursor_xoff = 1; }
-			else if(keycode == VK_HOME)       { new_i = prev_newline + 1; }
-			else if(keycode == VK_END)        { new_i = next_newline; cursor_xoff = 99999; preserve_cursor_xoff = 1; }
+			     if(keycode == VK_LEFT)   { new_i -= 1; }
+			else if(keycode == VK_RIGHT)  { new_i += 1; }
+			else if(keycode == VK_UP)     { new_i = prev_prev_newline + MAX(1, MIN(cursor_xoff, prev_newline - prev_prev_newline)); preserve_cursor_xoff = 1; }
+			else if(keycode == VK_DOWN)   { new_i = next_newline      + MAX(1, MIN(cursor_xoff, next_next_newline - next_newline)); preserve_cursor_xoff = 1; }
+			else if(keycode == VK_HOME)   { new_i = prev_newline + 1; }
+			else if(keycode == VK_END)    { new_i = next_newline; cursor_xoff = 99999; preserve_cursor_xoff = 1; }
 		}
 		if(modifiers_held & KEY_MODIFIER_CTRL) {
 			     if(keycode == VK_LEFT)   { new_i = prev_word_start; }
