@@ -1193,8 +1193,13 @@ u32 index_of_char(char* s, i32 i, char* chars, u32 instance, i32 dir) {
 	u32 cur_instance = 0;
 	while((i >= 0 || dir > 0) && s[i]) {
 		for(u32 j = 0; j < strlen(chars); j += 1) {
-			if(s[i] != chars[j] && !(chars[j] == 'A' && (isalpha(s[i]) || s[i] == '_')))
-				continue;
+			if(chars[j] == 'A') {
+				if(!isalpha(s[i]) && s[i] != '_') continue;
+			}
+			else if(chars[j] == 'N') {
+				if(isspace(s[i])) continue;
+			}
+			else if(s[i] != chars[j]) continue;
 			cur_instance += 1;
 			if(instance == cur_instance)
 				return i;
@@ -1240,67 +1245,80 @@ u64 Win32EventHandler(void* window, u32 msg, u64 wp, u64 lp) {
 		i32 del = 0;
 		i32 preserve_cursor_xoff = 0;
 		arena_gap_splice(&text_arena, text_arena.len, 0, &character, 0); // make buffer contiguous
-		i32 prev_newline      = index_of_char(text_arena.mem, new_i - 1,           "\n",    1, -1);
-		i32 prev_prev_newline = index_of_char(text_arena.mem, prev_newline - 1,    "\n",    1, -1);
-		i32 next_newline      = index_of_char(text_arena.mem, new_i,               "\n",    1,  1);
-		i32 next_next_newline = index_of_char(text_arena.mem, next_newline + 1,    "\n",    1,  1);
-		i32 prev_word_end     = index_of_char(text_arena.mem, new_i - 1,           "A",     1, -1);
-		i32 prev_word_start   = index_of_char(text_arena.mem, prev_word_end - 1,   " \t\n", 1, -1);
-		i32 next_word_start   = index_of_char(text_arena.mem, new_i + 1,           "A",     1,  1);
-		i32 next_word_end     = index_of_char(text_arena.mem, next_word_start + 1, " \t\n", 1,  1);
+		i32 prev_newline      = index_of_char(text_arena.mem, new_i - 1,        "\n",    1, -1);
+		i32 prev_prev_newline = index_of_char(text_arena.mem, prev_newline - 1, "\n",    1, -1);
+		i32 next_newline      = index_of_char(text_arena.mem, new_i,            "\n",    1,  1);
+		i32 next_next_newline = index_of_char(text_arena.mem, next_newline + 1, "\n",    1,  1);
+		i32 prev_word_end     = index_of_char(text_arena.mem, new_i - 1,        "N",     1, -1);
+		i32 prev_word_start   = index_of_char(text_arena.mem, prev_word_end,    " \t\n", 1, -1) + 1;
+		i32 cur_word_end      = index_of_char(text_arena.mem, new_i,            " \t\n", 1,  1);
+		i32 next_word_start   = index_of_char(text_arena.mem, cur_word_end,     "N",     1,  1);
+		i32 next_word_end     = index_of_char(text_arena.mem, next_word_start,  " \t\n", 1,  1) - 1;
 		if(keycode == VK_SHIFT)   modifiers_held |= KEY_MODIFIER_SHIFT;
 		if(keycode == VK_CONTROL) modifiers_held |= KEY_MODIFIER_CTRL;
 
+		// insertion
 		if(!modifiers_held) {
-			     if(keycode == VK_BACK)       { del = 1; }
-			else if(keycode == VK_DELETE)     { del = 1; new_i += del; }
-			else if(keycode == VK_RETURN)     character = '\n';
-			else if(keycode == VK_TAB)        character = '\t';
-			else if(keycode == VK_OEM_1)      character = ';';
-			else if(keycode == VK_OEM_PLUS)   character = '=';
-			else if(keycode == VK_OEM_COMMA)  character = ',';
-			else if(keycode == VK_OEM_MINUS)  character = '-';
-			else if(keycode == VK_OEM_PERIOD) character = '.';
-			else if(keycode == VK_OEM_2)      character = '/';
-			else if(keycode == VK_OEM_3)      character = '`';
-			else if(keycode == VK_OEM_4)      character = '[';
-			else if(keycode == VK_OEM_5)      character = '\\';
-			else if(keycode == VK_OEM_6)      character = ']';
-			else if(keycode == VK_OEM_7)      character = '\'';
-			else if(keycode == ' ')           character = keycode;
-			else if(isdigit(keycode))         character = keycode;
-			else if(isalpha(keycode))         character = keycode + 'a' - 'A';
+			     if(keycode == VK_RETURN)             character = '\n';
+			else if(keycode == VK_TAB)                character = '\t';
+			else if(keycode == VK_OEM_1)              character = ';';
+			else if(keycode == VK_OEM_PLUS)           character = '=';
+			else if(keycode == VK_OEM_COMMA)          character = ',';
+			else if(keycode == VK_OEM_MINUS)          character = '-';
+			else if(keycode == VK_OEM_PERIOD)         character = '.';
+			else if(keycode == VK_OEM_2)              character = '/';
+			else if(keycode == VK_OEM_3)              character = '`';
+			else if(keycode == VK_OEM_4)              character = '[';
+			else if(keycode == VK_OEM_5)              character = '\\';
+			else if(keycode == VK_OEM_6)              character = ']';
+			else if(keycode == VK_OEM_7)              character = '\'';
+			else if(keycode == ' ')                   character = keycode;
+			else if(isdigit(keycode))                 character = keycode;
+			else if(keycode >= 'A' && keycode <= 'Z') character = keycode + 'a' - 'A';
 		}
-
 		if(modifiers_held == KEY_MODIFIER_SHIFT) {
-			     if(isalpha(keycode))         character = keycode;
-			else if(keycode == VK_OEM_1)      character = ':';
-			else if(keycode == VK_OEM_PLUS)   character = '+';
-			else if(keycode == VK_OEM_COMMA)  character = '<';
-			else if(keycode == VK_OEM_MINUS)  character = '_';
-			else if(keycode == VK_OEM_PERIOD) character = '>';
-			else if(keycode == VK_OEM_2)      character = '?';
-			else if(keycode == VK_OEM_3)      character = '~';
-			else if(keycode == VK_OEM_4)      character = '{';
-			else if(keycode == VK_OEM_5)      character = '|';
-			else if(keycode == VK_OEM_6)      character = '}';
-			else if(keycode == VK_OEM_7)      character = '\"';
-			else if(keycode == '1')           character = '!';
-			else if(keycode == '2')           character = '@';
-			else if(keycode == '3')           character = '#';
-			else if(keycode == '4')           character = '$';
-			else if(keycode == '5')           character = '%';
-			else if(keycode == '6')           character = '^';
-			else if(keycode == '7')           character = '&';
-			else if(keycode == '8')           character = '*';
-			else if(keycode == '9')           character = '(';
-			else if(keycode == '0')           character = ')';
+			     if(keycode >= 'A' && keycode <= 'Z') character = keycode;
+			else if(keycode == VK_OEM_1)              character = ':';
+			else if(keycode == VK_OEM_PLUS)           character = '+';
+			else if(keycode == VK_OEM_COMMA)          character = '<';
+			else if(keycode == VK_OEM_MINUS)          character = '_';
+			else if(keycode == VK_OEM_PERIOD)         character = '>';
+			else if(keycode == VK_OEM_2)              character = '?';
+			else if(keycode == VK_OEM_3)              character = '~';
+			else if(keycode == VK_OEM_4)              character = '{';
+			else if(keycode == VK_OEM_5)              character = '|';
+			else if(keycode == VK_OEM_6)              character = '}';
+			else if(keycode == VK_OEM_7)              character = '\"';
+			else if(keycode == '1')                   character = '!';
+			else if(keycode == '2')                   character = '@';
+			else if(keycode == '3')                   character = '#';
+			else if(keycode == '4')                   character = '$';
+			else if(keycode == '5')                   character = '%';
+			else if(keycode == '6')                   character = '^';
+			else if(keycode == '7')                   character = '&';
+			else if(keycode == '8')                   character = '*';
+			else if(keycode == '9')                   character = '(';
+			else if(keycode == '0')                   character = ')';
 		}
 
+		// deletion
+		if(!modifiers_held) {
+			     if(keycode == VK_BACK)   { del = 1; }
+			else if(keycode == VK_DELETE) { del = 1; new_i += del; }
+		}
 		if(modifiers_held == KEY_MODIFIER_CTRL) {
 			     if(keycode == VK_BACK)   { del = new_i - prev_word_start; }
-			else if(keycode == VK_DELETE) { del = next_word_end - new_i; new_i += del; }
+			else if(keycode == VK_DELETE) { del = next_word_start - new_i; new_i += del; }
 		}
+		if(modifiers_held == (KEY_MODIFIER_CTRL | KEY_MODIFIER_SHIFT)) {
+			     if(keycode == VK_BACK)   { del = new_i - prev_newline - 1; }
+			else if(keycode == VK_DELETE) { del = next_newline - new_i; new_i += del; }
+		}
+		if(modifiers_held == KEY_MODIFIER_SHIFT) {
+			     if(keycode == VK_TAB)    {  } // remove tab at start of line if present, if selection, remove from start of selected lines
+		}
+
+		// movement
 		if(!(modifiers_held & KEY_MODIFIER_CTRL)) {
 			     if(keycode == VK_LEFT)   { new_i -= 1; }
 			else if(keycode == VK_RIGHT)  { new_i += 1; }
@@ -1311,14 +1329,14 @@ u64 Win32EventHandler(void* window, u32 msg, u64 wp, u64 lp) {
 		}
 		if(modifiers_held & KEY_MODIFIER_CTRL) {
 			     if(keycode == VK_LEFT)   { new_i = prev_word_start; }
-			else if(keycode == VK_RIGHT)  { new_i = next_word_end; }
+			else if(keycode == VK_RIGHT)  { new_i = next_word_start; }
 			else if(keycode == VK_UP)     { new_i = prev_prev_newline + MAX(1, MIN(cursor_xoff, prev_newline - prev_prev_newline)); preserve_cursor_xoff = 1; }
 			else if(keycode == VK_DOWN)   { new_i = next_newline      + MAX(1, MIN(cursor_xoff, next_next_newline - next_newline)); preserve_cursor_xoff = 1; }
 			else if(keycode == VK_HOME)   { new_i = 0; }
 			else if(keycode == VK_END)    { new_i = text_arena.len; cursor_xoff = 99999; preserve_cursor_xoff = 1; }
 		}
 
-		if(new_i < 0) { new_i = 0; cursor_xoff = 1; preserve_cursor_xoff = 1; }
+		if(new_i < 0) { new_i = 0; preserve_cursor_xoff = 1; }
 		arena_gap_splice(&text_arena, new_i, del, &character, !!character);
 		if(!preserve_cursor_xoff) cursor_xoff = text_arena.i - index_of_char(text_arena.mem, text_arena.i - 1, "\n", 1, -1);
 	}
@@ -1326,7 +1344,7 @@ u64 Win32EventHandler(void* window, u32 msg, u64 wp, u64 lp) {
 		if(keycode == VK_SHIFT)   modifiers_held &= ~KEY_MODIFIER_SHIFT;
 		if(keycode == VK_CONTROL) modifiers_held &= ~KEY_MODIFIER_CTRL;
 	}
-	if(msg == WM_MOUSEMOVE) {
+	if(msg == WM_LBUTTONDOWN) {
 	}
 	return DefWindowProcA(window, msg, wp, lp);
 }
