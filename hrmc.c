@@ -124,6 +124,32 @@ f64 __floatundidf(u64 a) {
 //// end min_crt.h ////
 
 //// start common.h ////
+#define MIN(a,b) (((a)<(b))?(a):(b))
+#define MAX(a,b) (((a)>(b))?(a):(b))
+
+u32 index_of_char(char* s, i32 i, char* chars, u32 instance, i32 dir) {
+	u32 last_index = i;
+	u32 cur_instance = 0;
+	while((i >= 0 || dir > 0) && s[i]) {
+		for(u32 j = 0; j < strlen(chars); j += 1) {
+			if(chars[j] == 'A') {
+				if(!isalpha(s[i]) && s[i] != '_') continue;
+			}
+			else if(chars[j] == 'N') {
+				if(isspace(s[i])) continue;
+			}
+			else if(s[i] != chars[j]) continue;
+			cur_instance += 1;
+			if(instance == cur_instance)
+				return i;
+			last_index = i;
+		}
+		i += dir;
+	}
+	if(i < 0) return i;
+	return last_index;
+}
+
 char parse_escape_char(char* in) {
 	if(in[0] != '\\') return in[0];
 	if(in[1] == '\\') return '\\';
@@ -1185,49 +1211,11 @@ u8 rasters[][13] = {
 #define KEY_MODIFIER_ALT   (1 << 2)
 #define KEY_MODIFIER_FN    (1 << 3)
 #define KEY_MODIFIER_SUPER (1 << 4)
-#define MIN(a,b) (((a)<(b))?(a):(b))
-#define MAX(a,b) (((a)>(b))?(a):(b))
-
-u32 index_of_char(char* s, i32 i, char* chars, u32 instance, i32 dir) {
-	u32 last_index = i;
-	u32 cur_instance = 0;
-	while((i >= 0 || dir > 0) && s[i]) {
-		for(u32 j = 0; j < strlen(chars); j += 1) {
-			if(chars[j] == 'A') {
-				if(!isalpha(s[i]) && s[i] != '_') continue;
-			}
-			else if(chars[j] == 'N') {
-				if(isspace(s[i])) continue;
-			}
-			else if(s[i] != chars[j]) continue;
-			cur_instance += 1;
-			if(instance == cur_instance)
-				return i;
-			last_index = i;
-		}
-		i += dir;
-	}
-	if(i < 0) return i;
-	return last_index;
-}
 
 arena text_arena;
 u8 modifiers_held = 0;
 i32 cursor_xoff = 1;
 u8 prev_char = 0;
-/*
-VK_OEM_1 0xBA 186 ;
-VK_OEM_PLUS 0xBB 187 =
-VK_OEM_COMMA 0xBC 188 ,
-VK_OEM_MINUS 0xBD 189 -
-VK_OEM_PERIOD 0xBE 190 .
-VK_OEM_2 0xBF 191 /
-VK_OEM_3 0xC0 192 `
-VK_OEM_4 0xDB 219 [
-VK_OEM_5 0xDC 220 \
-VK_OEM_6 0xDD 221 ]
-VK_OEM_7 0xDE 222 '
-*/
 
 u64 Win32EventHandler(void* window, u32 msg, u64 wp, u64 lp) {
 	if(msg == WM_DESTROY || msg == WM_CLOSE)
@@ -1242,6 +1230,7 @@ u64 Win32EventHandler(void* window, u32 msg, u64 wp, u64 lp) {
 		prev_char = keycode;
 		u8 character = 0;
 		i32 new_i = text_arena.i;
+		i32 prev_i = new_i;
 		i32 del = 0;
 		i32 preserve_cursor_xoff = 0;
 		arena_gap_splice(&text_arena, text_arena.len, 0, &character, 0); // make buffer contiguous
@@ -1254,6 +1243,16 @@ u64 Win32EventHandler(void* window, u32 msg, u64 wp, u64 lp) {
 		i32 cur_word_end      = index_of_char(text_arena.mem, new_i,            " \t\n", 1,  1);
 		i32 next_word_start   = index_of_char(text_arena.mem, cur_word_end,     "N",     1,  1);
 		i32 next_word_end     = index_of_char(text_arena.mem, next_word_start,  " \t\n", 1,  1) - 1;
+		i32 line_up   = prev_prev_newline + MAX(1, MIN(cursor_xoff, prev_newline - prev_prev_newline));
+		i32 line_down = next_newline      + MAX(1, MIN(cursor_xoff, next_next_newline - next_newline));
+		i32 empty_line_up = new_i - 1;
+		i32 empty_line_down = new_i + 1;
+		for(; empty_line_up > 0; empty_line_up--) // TODO: remember to remove \r from text_arena.mem
+			if(text_arena.mem[empty_line_up] == '\n' && text_arena.mem[empty_line_up - 1] == '\n')
+				break;
+		for(; empty_line_down < text_arena.len; empty_line_down++)
+			if(text_arena.mem[empty_line_down] == '\n' && text_arena.mem[empty_line_down - 1] == '\n')
+				break;
 		if(keycode == VK_SHIFT)   modifiers_held |= KEY_MODIFIER_SHIFT;
 		if(keycode == VK_CONTROL) modifiers_held |= KEY_MODIFIER_CTRL;
 
@@ -1322,21 +1321,35 @@ u64 Win32EventHandler(void* window, u32 msg, u64 wp, u64 lp) {
 		if(!(modifiers_held & KEY_MODIFIER_CTRL)) {
 			     if(keycode == VK_LEFT)   { new_i -= 1; }
 			else if(keycode == VK_RIGHT)  { new_i += 1; }
-			else if(keycode == VK_UP)     { new_i = prev_prev_newline + MAX(1, MIN(cursor_xoff, prev_newline - prev_prev_newline)); preserve_cursor_xoff = 1; }
-			else if(keycode == VK_DOWN)   { new_i = next_newline      + MAX(1, MIN(cursor_xoff, next_next_newline - next_newline)); preserve_cursor_xoff = 1; }
+			else if(keycode == VK_UP)     { new_i = line_up; preserve_cursor_xoff = 1; }
+			else if(keycode == VK_DOWN)   { new_i = line_down; preserve_cursor_xoff = 1; }
 			else if(keycode == VK_HOME)   { new_i = prev_newline + 1; }
 			else if(keycode == VK_END)    { new_i = next_newline; cursor_xoff = 99999; preserve_cursor_xoff = 1; }
 		}
 		if(modifiers_held & KEY_MODIFIER_CTRL) {
 			     if(keycode == VK_LEFT)   { new_i = prev_word_start; }
 			else if(keycode == VK_RIGHT)  { new_i = next_word_start; }
-			else if(keycode == VK_UP)     { new_i = prev_prev_newline + MAX(1, MIN(cursor_xoff, prev_newline - prev_prev_newline)); preserve_cursor_xoff = 1; }
-			else if(keycode == VK_DOWN)   { new_i = next_newline      + MAX(1, MIN(cursor_xoff, next_next_newline - next_newline)); preserve_cursor_xoff = 1; }
+			else if(keycode == VK_UP)     { new_i = empty_line_up; }
+			else if(keycode == VK_DOWN)   { new_i = empty_line_down; }
 			else if(keycode == VK_HOME)   { new_i = 0; }
 			else if(keycode == VK_END)    { new_i = text_arena.len; cursor_xoff = 99999; preserve_cursor_xoff = 1; }
 		}
+		if(modifiers_held & KEY_MODIFIER_ALT) {
+			     if(keycode == 'H')       { new_i -= 1; }
+			else if(keycode == 'L')       { new_i += 1; }
+			else if(keycode == 'K')       { new_i = line_up; preserve_cursor_xoff = 1; }
+			else if(keycode == 'J')       { new_i = line_down; preserve_cursor_xoff = 1; }
+			else if(keycode == 'B')       { new_i = prev_word_start; }
+			else if(keycode == 'N')       { new_i = next_word_start; }
+		}
+		if((modifiers_held & KEY_MODIFIER_ALT) && (modifiers_held & KEY_MODIFIER_SHIFT)) {
+			     if(keycode == VK_OEM_4)  { new_i = empty_line_up; }
+			else if(keycode == VK_OEM_6)  { new_i = empty_line_down; }
+		}
+		// TODO: rename the OEM stuff with a custom define, ideally what the ascii value is if avail
+		// if new_i != prev_i and command != 0 then do command with that motion
 
-		if(new_i < 0) { new_i = 0; preserve_cursor_xoff = 1; }
+		if(new_i < 0) { new_i = 0; preserve_cursor_xoff = 1; } // if going up on first line, preserve xoff
 		arena_gap_splice(&text_arena, new_i, del, &character, !!character);
 		if(!preserve_cursor_xoff) cursor_xoff = text_arena.i - index_of_char(text_arena.mem, text_arena.i - 1, "\n", 1, -1);
 	}
@@ -1421,7 +1434,7 @@ void _start() {
 		int xoff = 0;
 		int cursor_xoff = xoff;
 		int cursor_yoff = yoff;
-		int xstride = 10;
+		int xstride = 9;
 		int ystride = 15;
 		for(int i = 0; i < text_arena.len; i++) {
 			u8 character = text_arena.mem[i];
