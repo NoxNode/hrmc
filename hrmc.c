@@ -2,6 +2,214 @@
 //gcc hrmc.c -o hrmc.exe -O0 -g -w -mwindows -m64 -nostdlib -Wl,-e_start && ./hrmc.exe ; echo $?
 /* hrmc.c started as a thing to just help debug Win32 oddities.
 It's now turned into a reference implementation of the code editor that I plan on eventually having in HRMC
+
+
+
+things you can do with a mouse that right hand on keyboard can ideally also do
+	select char/word/line/paragraph across windows
+	scroll/zoom within window
+	minimize/resize/close/move windows (if they have decorations)
+	open context menu
+
+left 00 right left hand guide  right hand guide
+1234 56 7890  num param input  num param input
+qwer ty uiop  local  commands  fast selection/reference
+asdf g; hjkl  global commands  mouse motion replacement
+zxcv bn m,./  typing ascii     mouse button replacement
+
+shift and space are modifiers for commands and parameters
+	hjkl with 00 = char/line, 0p = word/paragraph, h0 = line/buffer, hp = ?
+alt+space to switch normal/engelbart mode
+alt alone to use keys as other mode while alt held
+/ = left click b/c can still do hjkl while holding
+. = mostly vertical stuff
+m = mostly horizontal stuff
+, = least common stuff cuz difficult to do hjkl with it
+lots of unprintable ascii characters can be repurposed as commands
+
+global commands
+	undo
+	redo or maybe we just want a goto action history and select an entry there
+	cut
+	paste
+	copy is cut and paste
+if action history and command bindings are all done with text that could be cool
+while inputting a command, show the table of commands and the binary/hex for them
+commands and action history should be visible, configurable, and aligned with hexchords
+can use a mouse button to hold the previous command
+	and use the next command as the hjkl or uiop parameter
+
+have 31 commands accessible at any time within a window (15 global/local)
+	1 redo             repeat
+	2 erase/delete     enter/open
+	3 mark             match
+	4 undo             wash/undo
+	5 select           store
+	6 indent           unindent
+	7 tab/to           tag/symbol
+	8 quit/close       query/search
+	9 tab character
+	A newline character
+	B branch?
+	C copy/compare
+	D duplicate
+	E end
+	F find/cancel?
+
+navigation
+	move cursor/view
+		by char/word/line/page/file
+		goto prev/next/first/matching word/search/reference/visited spot/marker/scope
+		get list of matching word/search/refs
+	file
+		open/list file/dir/buffer typed/highlighted
+	window
+		split/expand/shrink/restore vertical/horizontal
+		restore sizeof all
+		minimize all others
+		close
+		goto hjkl prev/next
+		swap hjkl prev/next
+	tab
+		open/close
+		goto next/prev
+manipulation
+	cut copy (un)indent join [motion]
+	refer to register [character] for next command
+	start/end/replay macro recording
+		make macro from x history items
+	undo/redo
+	paste before/after
+	next/prev autocomplete item
+	replace insert math
+
+text changes
+	new_i, del, character
+window/view changes
+	split, scale, close, scroll, swap, select, zoom
+	cursor_i, cursor_xoff
+	move (when not tiled)
+buffer/file changes
+	open, switch, delete
+
+  asdf            qwer            uiop
+1 *#              ./^r            pP     
+2 dD              :e              Over/back
+3 mark fileloc    mark history    matching
+4 Scroll          Window          Into/forward
+5 Select          :w              Searched term
+6 indent          gf              inner scope
+7 To/Jump         Tab             Tag/symbol
+8 yY              :q/q            u   
+9 unindent        parent file     outer scope
+A Replace & Find  Autocomplete    Above/top
+B Bring together  prev autocomple Below/bottom
+C Compare         :cd             Center
+D Duplicate       Deploy/run      Door/home/data
+E Replace mode    Enter reg       End/line
+F Cancel          Cancel          Find/Til (fFtT)
+
+Scroll/Window/Tab can be held so hjkl move w.r.t those scopes
+	mouse movements could also be done at those scopes like the middle mouse click thing
+	have like command and pending_command
+		pending is what they're currently holding
+		command is what they've just released
+
+^s to save all modified
+^S to save as
+^e to open file
+^t open tab
+^w to close window/tab
+^a select all
+^tab and ^shift tab to switch tabs?
+^zxcv to undo/cut/copy/paste selection
+^Z to redo
+^f find/replace
+^r refresh
+^b bookmarks
+^h history
+^l select url
+
+
+memory
+  num_arenas :i32
+  reserved :i32
+  arenas :mem_arena[]
+view
+  pos
+  size
+  zoom
+  scroll_pos
+  buffer_start_i
+  cursor_i    // from text_arena.i
+  cursor_xoff // relative to line start
+  selection_start_i
+  hrmc_i // could be used for multimedia?
+
+
+
+
+
+
+c to hrmc compiler
+  structs are just scoped consts
+  names list and start stack slot
+  then just shunting yard dat sheet
+translate hrmc to everything by default
+  toggle to not translate
+    click or vimium select
+      also show tool tip on hover
+  gray out if translation failed
+
+global
+  text_i
+  type_i
+  num_locals
+  locals_start_i
+  locals_start_val
+local
+  text_i
+  type_i
+  globals_i_of_parent
+text_arena      :u8[]
+globals_arena   :global[]
+globals_types_i :i32
+globals_hrmc_i  :i32
+locals_arena    :local[]
+
+if compiling and see #include
+  splice it in right there
+within function, edits are dumb
+  we just recompile the function every edit
+if you edit the local names comment
+  we update all the instances of that var within the func
+  same for editing a global name
+  we do that by re-translating the function from hrmc
+can compile a hrmc compile function then call it to compile the rest of the hrmc
+  is the only point of that adding extra features? if so the compile function can't use those features then
+can split the locals meta info into 3 things
+  initial stack slot number
+  one array of numbers that's indices into the string array
+  a string array that's null terminated names
+  97 "store there" followed by a byte for the id of what's being stored (can also be used as a data table index to store an address - or can reuse 7E but store in data table if param is not 7x) then a u16 for size of following const data
+  so the locals meta info can be just be two 97s before the func
+  could also have a 97 preceded by the size at the end so we can traverse forward or backwards past meta data (or just don't interleave with function ops)
+  can check for 97 as we render, set a global ptr to local meta data, and use that when rendering
+  actually, to make it remain nice to program in and nice to specify meta data in, just do 97 size first_slot {comma separated names} and make the self-hosted compiler translate the ascii (or maybe just skip)
+  can build up the indices list as we parse/render
+  can make this in a comment that the hrmc self-compiler recognizes
+#@ [names list] for naming hrmc table
+#@0F [names list] for naming the things pointed to by that hrmc slot
+  find something that works in C/Python/JS
+would like to not be bound by global slots for functions and global variables and still be able to access them in 1 op
+  maybe 8x ops?
+  8Fzz could be E600 EEzz D80F
+  but how do we enscribe a func?
+  would rather not do more in machine code
+  maybe we have a function for moving the addr from hrmc table to func list that we call at compile time and just have a new mechanism for calling funcs at compile time
+get_kernel32 should handle small names
+  check j <= i or do something in condition of loop to handle that
+
 */
 
 typedef          char      i8;
@@ -1245,8 +1453,8 @@ u64 Win32EventHandler(void* window, u32 msg, u64 wp, u64 lp) {
 		i32 next_word_end     = index_of_char(text_arena.mem, next_word_start,  " \t\n", 1,  1) - 1;
 		i32 line_up   = prev_prev_newline + MAX(1, MIN(cursor_xoff, prev_newline - prev_prev_newline));
 		i32 line_down = next_newline      + MAX(1, MIN(cursor_xoff, next_next_newline - next_newline));
-		i32 empty_line_up = new_i - 1;
-		i32 empty_line_down = new_i + 1;
+		i32 empty_line_up = index_of_char(text_arena.mem, new_i - 1, "A", 1, -1);
+		i32 empty_line_down = index_of_char(text_arena.mem, new_i + 1, "A", 1, 1);
 		for(; empty_line_up > 0; empty_line_up--) // TODO: remember to remove \r from text_arena.mem
 			if(text_arena.mem[empty_line_up] == '\n' && text_arena.mem[empty_line_up - 1] == '\n')
 				break;
@@ -1334,7 +1542,7 @@ u64 Win32EventHandler(void* window, u32 msg, u64 wp, u64 lp) {
 			else if(keycode == VK_HOME)   { new_i = 0; }
 			else if(keycode == VK_END)    { new_i = text_arena.len; cursor_xoff = 99999; preserve_cursor_xoff = 1; }
 		}
-		if(modifiers_held & KEY_MODIFIER_ALT) {
+		if(modifiers_held == KEY_MODIFIER_ALT) {
 			     if(keycode == 'H')       { new_i -= 1; }
 			else if(keycode == 'L')       { new_i += 1; }
 			else if(keycode == 'K')       { new_i = line_up; preserve_cursor_xoff = 1; }
@@ -1345,6 +1553,10 @@ u64 Win32EventHandler(void* window, u32 msg, u64 wp, u64 lp) {
 		if((modifiers_held & KEY_MODIFIER_ALT) && (modifiers_held & KEY_MODIFIER_SHIFT)) {
 			     if(keycode == VK_OEM_4)  { new_i = empty_line_up; }
 			else if(keycode == VK_OEM_6)  { new_i = empty_line_down; }
+			else if(keycode == 'H')       { new_i = prev_word_start; }
+			else if(keycode == 'L')       { new_i = next_word_start; }
+			else if(keycode == 'K')       { new_i = empty_line_up; }
+			else if(keycode == 'J')       { new_i = empty_line_down; }
 		}
 		// TODO: rename the OEM stuff with a custom define, ideally what the ascii value is if avail
 		// if new_i != prev_i and command != 0 then do command with that motion
