@@ -5,6 +5,13 @@ It's now turned into a reference implementation of the code editor that I plan o
 
 
 
+viewspecs and controlspecs for each window and link
+links also can address content in multiple ways
+content address first char | address type
+	letter | symbol name
+	number | outline index
+	#      | hash/id
+
 things you can do with a mouse that right hand on keyboard can ideally also do
 	select char/word/line/paragraph across windows
 	scroll/zoom within window
