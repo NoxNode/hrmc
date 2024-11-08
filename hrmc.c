@@ -718,6 +718,10 @@ typedef struct PAINTSTRUCT {
 #define DIB_RGB_COLORS 0
 #define BI_RGB 0
 
+// mouse xbuttons
+#define XBUTTON1 0x0001
+#define XBUTTON2 0x0002
+
 // virtual keycodes
 #define VK_LBUTTON 0x01
 #define VK_RBUTTON 0x02
@@ -1436,6 +1440,7 @@ u64 Win32EventHandler(void* window, u32 msg, u64 wp, u64 lp) {
 	if(msg == WM_DESTROY || msg == WM_CLOSE)
 		ExitProcess(0);
 	u64 keycode = wp;
+	u64 mousecode = (wp >> 16) & 0xFFFF;
 	//u64 was_down = lp & (1 << 30);
 	//u64 is_down  = lp & (1 << 31);
 	u64 alt_was_down  = lp & (1 << 29);
@@ -1577,6 +1582,17 @@ u64 Win32EventHandler(void* window, u32 msg, u64 wp, u64 lp) {
 		if(keycode == VK_CONTROL) modifiers_held &= ~KEY_MODIFIER_CTRL;
 	}
 	if(msg == WM_LBUTTONDOWN) {
+		console_log("lmb\n", 0);
+	}
+	if(msg == WM_RBUTTONDOWN) {
+		console_log("rmb\n", 0);
+	}
+	if(msg == WM_MBUTTONDOWN) {
+		console_log("mmb\n", 0);
+	}
+	if(msg == WM_XBUTTONDOWN) {
+		if(mousecode == XBUTTON1) console_log("bmb\n", 0);
+		if(mousecode == XBUTTON2) console_log("fmb\n", 0);
 	}
 	return DefWindowProcA(window, msg, wp, lp);
 }
