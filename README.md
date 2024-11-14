@@ -178,7 +178,7 @@ The mnemonic/reasoning for all the entries in the remaining op groups (Ax, Bx, C
 
 - Why stack based?
 
-	I explored register based with like 4 bytes per hrmc, but it a lot more verbose, less composable, and harder to follow.
+	I explored register based with like 4 bytes per hrmc, but it was a lot more verbose, less composable, and harder to follow.
 	I did think about how I could do both stack and register based in the same encoding
 		- like have a different scope-start op for stack vs register code, but I think that'd be too complicated.
 	A lot of design decisions started becoming clearer when I made the following ordered list of priorities:

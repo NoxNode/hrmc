@@ -1097,7 +1097,7 @@ void* get_kernel32() {
 void* GetProcAddress(u8* handle, char* proc_name, void* (*LoadLibraryA)(char*)) {
 	u8* pe_hdr = handle + *(u32*)(handle+0x3C);
 	u8* exports_table = handle + *(u32*)(pe_hdr+0x18+0x70);
-	u32* names_table = handle + *(u32*)(exports_table+0x20);
+	u32* names_table = (u32*)(handle + *(u32*)(exports_table+0x20));
 	i64 index;
 	if(proc_name[0] == '#') { // TODO: test this path
 		parse_based_int(proc_name, 1, &index, 10);
@@ -1116,8 +1116,8 @@ void* GetProcAddress(u8* handle, char* proc_name, void* (*LoadLibraryA)(char*)) 
 		if(strcmp(proc_name, handle+names_table[index]) != 0)
 			return 0;
 	}
-	u16* ordinal_table = handle + *(u32*)(exports_table+0x24);
-	u32* export_address_table = handle + *(u32*)(exports_table+0x1C);
+	u16* ordinal_table = (u16*)(handle + *(u32*)(exports_table+0x24));
+	u32* export_address_table = (u32*)(handle + *(u32*)(exports_table+0x1C));
 	u8* addr = handle + export_address_table[ordinal_table[index]];
 	u32 exports_table_size = *(u32*)(pe_hdr+0x18+0x70+4);
 	if(addr < exports_table || addr >= exports_table + exports_table_size)
@@ -1251,7 +1251,7 @@ u32 console_log_i64(i64 value) {
 	void* fout = GetStdHandle(STD_OUTPUT_HANDLE);
 	u32 bytes_written;
 	char digits[16] = {0};
-	int i = int2str(value, digits);
+	int i = int2str(value, digits) - digits;
 	WriteFile(fout, digits + i + 1, 14 - i, &bytes_written, 0);
 	return bytes_written;
 }
