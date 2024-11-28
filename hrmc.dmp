@@ -555,14 +555,14 @@ E700 # return0
 
 ## int strcmp(char* s1 char* s2)
 7E05 BD00 # 05=&strcmp; setup stack frame
-7E71 5602 6000 B071 5603 6000 B071 5602 6000 5603 6000 CE00 B071 # $02 @u8 ? $03 @u8 ? $02 @u8 $03 @u8 == ?
-     5602 EA01 5902 5603 EA01 5903 # $02 +1 =$02 $03 +1 =$03
+7E71 5602 6000 B071 5603 6000 B071 5602 6000 5603 6000 CE00 B071 # $02 @u8 ? $03 @u8 ? $02 @u8 $03 @u8 == ?    aka     while(*s1 && *s2 && *s1 == *s2) {
+     5602 EA01 5902 5603 EA01 5903 # $02 +1 =$02 $03 +1 =$03    aka      s1++; s2++;
      BB71 # continue
 7F71
-7E71 5602 6000 5603 6000 CE00 B071 # $02 @u8 $03 @u8 == ?
+7E71 5602 6000 5603 6000 CE00 B071 # $02 @u8 $03 @u8 == ?       aka      if(*s1 == *s2) {
      E700 # return0
 7F71
-5602 6000 5603 6000 AB00 BE00 # $02 @u8 $03 @u8 - return
+5602 6000 5603 6000 AB00 BE00 # $02 @u8 $03 @u8 - return        aka      return *s1 - *s2;
 
 ## void* GetProcAddress(void* handle char* proc_name)
 7E0A BD00 5E10 # 0A=&GetProcAddress; setup stack frame; reserve 16 stack slots for locals

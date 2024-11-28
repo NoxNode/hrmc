@@ -1,8 +1,11 @@
-// cl hrmc.c -nologo -Oi -Zi -GS- -Gs9999999 -link -subsystem:windows -nodefaultlib -stack:0x100000,0x100000 -machine:x64 -entry:"_start" && ./hrmc.exe ; echo $?
 //gcc hrmc.c -o hrmc.exe -O0 -g -w -mwindows -m64 -nostdlib -Wl,-e_start && ./hrmc.exe ; echo $?
+// cl hrmc.c -nologo -Oi -Zi -GS- -Gs9999999 -link -subsystem:windows -nodefaultlib -stack:0x100000,0x100000 -machine:x64 -entry:"_start" && ./hrmc.exe ; echo $?
 /* hrmc.c started as a thing to just help debug Win32 oddities.
 It's now turned into a reference implementation of the code editor that I plan on eventually having in HRMC
 
+
+each instruction has an instruction byte and a parameter byte
+	aka 2 byte fixed instruction length
 
 
 viewspecs and controlspecs for each window and link
@@ -1582,17 +1585,17 @@ u64 Win32EventHandler(void* window, u32 msg, u64 wp, u64 lp) {
 		if(keycode == VK_CONTROL) modifiers_held &= ~KEY_MODIFIER_CTRL;
 	}
 	if(msg == WM_LBUTTONDOWN) {
-		console_log("lmb\n", 0);
+		console_log("l\n", 0);
 	}
 	if(msg == WM_RBUTTONDOWN) {
-		console_log("rmb\n", 0);
+		console_log("r\n", 0);
 	}
 	if(msg == WM_MBUTTONDOWN) {
-		console_log("mmb\n", 0);
+		console_log("m\n", 0);
 	}
 	if(msg == WM_XBUTTONDOWN) {
-		if(mousecode == XBUTTON1) console_log("bmb\n", 0);
-		if(mousecode == XBUTTON2) console_log("fmb\n", 0);
+		if(mousecode == XBUTTON1) console_log("b\n", 0);
+		if(mousecode == XBUTTON2) console_log("f\n", 0);
 	}
 	return DefWindowProcA(window, msg, wp, lp);
 }

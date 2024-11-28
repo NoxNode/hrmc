@@ -157,10 +157,10 @@ end_of_table_restoration:
 	jmp compile_loop
 end_of_branch_backwards_patching:
 	cmp r8, 0xD0                # if c & 0xF0 is 0xD0 then u32[dest-9] = d << 4
-	jne end_of_global_offset_patching
+	jne end_of_data_table_addr_patching
 	mov [rdi-9], r9d
 	jmp compile_loop
-end_of_global_offset_patching:
+end_of_data_table_addr_patching:
 	cmp r8, 0xE0                # if c & 0xF0 is 0xE0 then u8[dest-9] = d
 	jne end_of_const_imm_patching
 	mov [rdi-9], dl
