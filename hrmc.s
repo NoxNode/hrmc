@@ -319,7 +319,7 @@ pop rcx; pop rdx; pop r8; pop r9; sub rsp, 0x20; .align 16, 0x90                
 .zero 16*1                                                                                                                 # B6 unused in windows, used in linux
 .zero 16*1                                                                                                                 # B7 unused in windows, used in linux
 .zero 16*1                                                                                                                 # B8 unused in windows, used in linux
-.zero 16*1                                                                                                                 # B9 adjust for non-syscall abi - unused in windows, used in linux
+.zero 16*1                                                                                                                 # B9 adjust for non-syscall abi - unused in windows, used in linux (TODO: maybe make BE just ret without doing pop rax or stack restoration and make B9 do that stuff cuz 9 meaning store kind of matches that)
 and rsp, -16; .align 16, 0x90                                                                                              # BA stack must be 16 byte aligned on function entry
 .byte 0x90,0x90,0x90,0x90, 0x90,0x90,0x90,0x90, 0x90,0x90,0x90;jmp mzhdr;                                                  # BB backward (continue)
 pop rax; call rax; push rax; .align 16, 0x90                                                                               # BC call procedure

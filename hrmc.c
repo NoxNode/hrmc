@@ -219,6 +219,8 @@ would like to not be bound by global slots for functions and global variables an
   maybe we have a function for moving the addr from hrmc table to func list that we call at compile time and just have a new mechanism for calling funcs at compile time
 get_kernel32 should handle small names
   check j <= i or do something in condition of loop to handle that
+(TODO: maybe make BE just ret without doing pop rax or stack restoration and make B9 do that stuff cuz 9 meaning store kind of matches that)
+current B9 being for linux ABI stuff isn't even necessary for linux ABI stuff because you can just mov the param into both the registers used for user/kernel ABIs
 
 */
 

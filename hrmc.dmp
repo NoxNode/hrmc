@@ -362,7 +362,7 @@ e9 22 ff ff ff       	# jmp    0x400198                             400271:
 0000 0000 0000 0000 0000 0000 0000 0000 # B6 unused in windows, used in linux
 0000 0000 0000 0000 0000 0000 0000 0000 # B7 unused in windows, used in linux
 0000 0000 0000 0000 0000 0000 0000 0000 # B8 unused in windows, used in linux
-0000 0000 0000 0000 0000 0000 0000 0000 # B9 adjust for non-syscall abi - unused in windows, used in linux
+0000 0000 0000 0000 0000 0000 0000 0000 # B9 adjust for non-syscall abi - unused in windows, used in linux (TODO: maybe make BE just ret without doing pop rax or stack restoration and make B9 do that stuff cuz 9 meaning store kind of matches that)
 4883 e4f0 6666 2e0f 1f84 0000 0000 0090 # BA stack must be 16 byte aligned on function entry
 9090 9090 9090 9090 9090 90e9 c0f1 ffff # BB backward (continue)
 58ff d050 6666 2e0f 1f84 0000 0000 0090 # BC call procedure
