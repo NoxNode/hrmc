@@ -143,12 +143,12 @@ continue_compiling:
 	add rdi, 16                 # rdi += 16
 
 	cmp cl, 0xDE                # if c is 0xDE then u32[dest-4] = hrmc_table - dest
-	jne end_of_table_restoration
+	jne end_of_table_restore_patching
 	mov rax, rbx
 	sub rax, rdi
 	mov [rdi-4], eax
 	jmp compile_loop
-end_of_table_restoration:
+end_of_table_restore_patching:
 	cmp cl, 0xBB                # if c is 0xBB then u32[dest-4] = u64[hrmc_table + (d << 4)] - dest
 	jne end_of_branch_backwards_patching
 	mov rax, [rbx + r9]

@@ -4,8 +4,231 @@
 It's now turned into a reference implementation of the code editor that I plan on eventually having in HRMC
 
 
+
+
+port to phone and raspberry pi 2
+	maybe just ask if chatgpt can translate hrmc.s into arm32/arm64/riscv64 for raspbian/linux/mac
+	can do terminal apps for phone using Termux, but I wanna do full bitmap display graphics
+		try to get rawdrawandroid going and then break it down into as simple a thing it can be
+undo/redo
+	arena for deleted text
+	arena for splice params that acts as the undo stack
+	if undoing an insert, move from main to deleted
+	if undoing a delete, move from deleted to main
+	if redoing an insert, move from deleted to main
+	if redoing a delete, move from main to deleted
+	replace mode kinda does both
+	undo/redoing a move is easy
+
+
+make hexchord only do stuff on keypress
+pageup pagedown, shift selection, copy paste, undo redo, etc
+audio
+load htmc.dmp from file
+parse name comments
+show hrmc as either hex or name-aliased code
+be able to write in name-aliased view and have it translated to hex
+live reload
+custom views
+view-making toolkit
+
+
+
+
+intermediate representations, token ids, ast node type enums seem to me to all be so similar that a minimal portable system would surely collapse all these into 1 thing, this repo is an attempt at making that thing.
+
+
+
+instr table for arm32/arm64/riscv64/
+compiler    for arm32/arm64/riscv64 (can do in C and get it compiled out)
+header      for mac-arm64/lin-all the above
+platfuncs   for mac/lin all the above
+rest is all fully cross platform hrmit
+
+# riscv64
+LB x0, 0(x0)         # Load byte (sign-extend) from memory at address in x0
+LBU x0, 0(x0)        # Load byte (zero-extend) from memory at address in x0
+LH x0, 0(x0)         # Load halfword (sign-extend) from memory at address in x0
+LHU x0, 0(x0)        # Load halfword (zero-extend) from memory at address in x0
+LW x0, 0(x0)         # Load word (sign-extend) from memory at address in x0
+LWU x0, 0(x0)        # Load word (zero-extend) from memory at address in x0
+LD x0, 0(x0)         # Load doubleword from memory at address in x0
+SB x0, 0(x0)         # Store byte to memory at address in x0
+SH x0, 0(x0)         # Store halfword to memory at address in x0
+SW x0, 0(x0)         # Store word to memory at address in x0
+SD x0, 0(x0)         # Store doubleword to memory at address in x0
+OR x0, x0, x0        # Bitwise OR of x0 and x0
+AND x0, x0, x0       # Bitwise AND of x0 and x0
+XOR x0, x0, x0       # Bitwise XOR of x0 and x0
+XORI x0, x0, -1      # Bitwise NOT (invert all bits of x0)
+ADD x0, x0, x0       # Add x0 and x0
+SUB x0, x0, x0       # Subtract x0 from x0
+MUL x0, x0, x0       # Multiply x0 by x0 (requires M extension)
+DIV x0, x0, x0       # Divide x0 by x0 (signed, requires M extension)
+DIVU x0, x0, x0      # Divide x0 by x0 (unsigned, requires M extension)
+REM x0, x0, x0       # Remainder of x0 / x0 (signed, requires M extension)
+REMU x0, x0, x0      # Remainder of x0 / x0 (unsigned, requires M extension)
+MULHU x0, x0, x0     # Upper half of unsigned multiplication (requires M extension)
+SUB x0, x0, x0       # Negate x0 (subtract x0 from 0)
+SLL x0, x0, x0       # Shift x0 left logically by the value in x0
+SRL x0, x0, x0       # Shift x0 right logically by the value in x0
+SRA x0, x0, x0       # Shift x0 right arithmetically by the value in x0
+SLT x0, x0, x0       # Set x0 if x0 < x0 (signed)
+SLTU x0, x0, x0      # Set x0 if x0 < x0 (unsigned)
+BEQ x0, x0, label    # Branch if x0 == x0
+BNE x0, x0, label    # Branch if x0 != x0
+BLT x0, x0, label    # Branch if x0 < x0 (signed)
+BLTU x0, x0, label   # Branch if x0 < x0 (unsigned)
+BGE x0, x0, label    # Branch if x0 >= x0 (signed)
+BGEU x0, x0, label   # Branch if x0 >= x0 (unsigned)
+JAL x0, label        # Call function at label (no return address saved)
+JR x0                # Return from function (jump to address in x0)
+JAL x0, label        # Unconditional jump to label (no return address saved)
+BEQ x0, x0, label    # Conditional jump (if x0 == x0)
+NOP                  # No operation (equivalent to ADDI x0, x0, 0)
+ADDI sp, sp, -8      # Decrement stack pointer
+SD x0, 0(sp)         # Push x0 onto the stack
+LD x0, 0(sp)         # Pop x0 from the stack
+ADDI sp, sp, 8       # Increment stack pointer
+ECALL                # Perform a system call
+
+# arm64
+LDRB x0, [x0]        # Load byte (zero-extend) from memory at address in x0
+LDRSB x0, [x0]       # Load byte (sign-extend) from memory at address in x0
+LDRH x0, [x0]        # Load halfword (zero-extend) from memory at address in x0
+LDRSH x0, [x0]       # Load halfword (sign-extend) from memory at address in x0
+LDR x0, [x0]         # Load word (sign-extend) from memory at address in x0
+LDRSW x0, [x0]       # Load word (zero-extend) from memory at address in x0
+LDR x0, [x0]         # Load doubleword from memory at address in x0
+STRB x0, [x0]        # Store byte to memory at address in x0
+STRH x0, [x0]        # Store halfword to memory at address in x0
+STR x0, [x0]         # Store word to memory at address in x0
+STR x0, [x0]         # Store doubleword to memory at address in x0
+ORR x0, x0, x0       # Bitwise OR of x0 and x0
+AND x0, x0, x0       # Bitwise AND of x0 and x0
+EOR x0, x0, x0       # Bitwise XOR of x0 and x0
+MVN x0, x0           # Bitwise NOT (invert all bits of x0)
+ADD x0, x0, x0       # Add x0 and x0
+SUB x0, x0, x0       # Subtract x0 from x0
+MUL x0, x0, x0       # Multiply x0 by x0
+SDIV x0, x0, x0      # Divide x0 by x0 (signed)
+UDIV x0, x0, x0      # Divide x0 by x0 (unsigned)
+MNEG x0, x0, x0      # Negate x0 (x0 = -x0 * x0)
+LSL x0, x0, x0       # Shift x0 left logically by the value in x0
+LSR x0, x0, x0       # Shift x0 right logically by the value in x0
+ASR x0, x0, x0       # Shift x0 right arithmetically by the value in x0
+CMP x0, x0           # Compare x0 and x0
+CSEL x0, x0, x0, EQ  # Conditional select if x0 == x0
+CSEL x0, x0, x0, NE  # Conditional select if x0 != x0
+CSEL x0, x0, x0, LT  # Conditional select if x0 < x0 (signed)
+CSEL x0, x0, x0, LE  # Conditional select if x0 <= x0 (signed)
+CSEL x0, x0, x0, GT  # Conditional select if x0 > x0 (signed)
+CSEL x0, x0, x0, GE  # Conditional select if x0 >= x0 (signed)
+CSEL x0, x0, x0, LO  # Conditional select if x0 < x0 (unsigned)
+CSEL x0, x0, x0, LS  # Conditional select if x0 <= x0 (unsigned)
+CSEL x0, x0, x0, HI  # Conditional select if x0 > x0 (unsigned)
+CSEL x0, x0, x0, HS  # Conditional select if x0 >= x0 (unsigned)
+B label              # Unconditional branch to label
+BL label             # Call function at label
+RET                  # Return from function
+BEQ label            # Branch if x0 == x0
+BNE label            # Branch if x0 != x0
+BLT label            # Branch if x0 < x0 (signed)
+BLE label            # Branch if x0 <= x0 (signed)
+BGT label            # Branch if x0 > x0 (signed)
+BGE label            # Branch if x0 >= x0 (signed)
+BLO label            # Branch if x0 < x0 (unsigned)
+BLS label            # Branch if x0 <= x0 (unsigned)
+BHI label            # Branch if x0 > x0 (unsigned)
+BHS label            # Branch if x0 >= x0 (unsigned)
+NOP                  # No operation
+STP x0, x0, [sp, #-16]! # Push x0 and x0 onto the stack
+LDP x0, x0, [sp], #16 # Pop x0 and x0 from the stack
+
+# arm32
+LDRB r0, [r0]        # Load byte (zero-extend) from memory at address in r0
+LDRSB r0, [r0]       # Load byte (sign-extend) from memory at address in r0
+LDRH r0, [r0]        # Load halfword (zero-extend) from memory at address in r0
+LDRSH r0, [r0]       # Load halfword (sign-extend) from memory at address in r0
+LDR r0, [r0]         # Load word from memory at address in r0
+STRB r0, [r0]        # Store byte to memory at address in r0
+STRH r0, [r0]        # Store halfword to memory at address in r0
+STR r0, [r0]         # Store word to memory at address in r0
+ORR r0, r0, r0       # Bitwise OR of r0 and r0
+AND r0, r0, r0       # Bitwise AND of r0 and r0
+EOR r0, r0, r0       # Bitwise XOR of r0 and r0
+MVN r0, r0           # Bitwise NOT (invert all bits of r0)
+ADD r0, r0, r0       # Add r0 and r0
+SUB r0, r0, r0       # Subtract r0 from r0
+MUL r0, r0, r0       # Multiply r0 by r0
+SDIV r0, r0, r0      # Divide r0 by r0 (signed, requires SDIV support)
+UDIV r0, r0, r0      # Divide r0 by r0 (unsigned, requires UDIV support)
+RSB r0, r0, #0       # Negate r0 (subtract r0 from 0)
+LSL r0, r0, #1       # Logical left shift of r0 by 1
+LSR r0, r0, #1       # Logical right shift of r0 by 1
+ASR r0, r0, #1       # Arithmetic right shift of r0 by 1
+CMP r0, r0           # Compare r0 and r0
+MOV r0, #1           # Set r0 to 1 (used with conditional execution)
+MOVNE r0, #1         # Set r0 to 1 if not equal
+MOVEQ r0, #1         # Set r0 to 1 if equal
+MOVLT r0, #1         # Set r0 to 1 if less than (signed)
+MOVLE r0, #1         # Set r0 to 1 if less than or equal (signed)
+MOVGT r0, #1         # Set r0 to 1 if greater than (signed)
+MOVGE r0, #1         # Set r0 to 1 if greater than or equal (signed)
+MOVLO r0, #1         # Set r0 to 1 if less than (unsigned)
+MOVLS r0, #1         # Set r0 to 1 if less than or equal (unsigned)
+MOVHI r0, #1         # Set r0 to 1 if greater than (unsigned)
+MOVHS r0, #1         # Set r0 to 1 if greater than or equal (unsigned)
+B label              # Unconditional branch to label
+BL label             # Call function at label
+BX lr                # Return from function
+BEQ label            # Branch if equal
+BNE label            # Branch if not equal
+BLT label            # Branch if less than (signed)
+BLE label            # Branch if less than or equal (signed)
+BGT label            # Branch if greater than (signed)
+BGE label            # Branch if greater than or equal (signed)
+BLO label            # Branch if less than (unsigned)
+BLS label            # Branch if less than or equal (unsigned)
+BHI label            # Branch if greater than (unsigned)
+BHS label            # Branch if greater than or equal (unsigned)
+NOP                  # No operation
+STMDB sp!, {r0}      # Push r0 onto the stack
+LDMIA sp!, {r0}      # Pop r0 from the stack
+SWI 0                # Perform a system call
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 each instruction has an instruction byte and a parameter byte
 	aka 2 byte fixed instruction length
+
+
+so many things in software follow this form
+	you accumulate a list of events or commands
+	these events/commands up to a given time t determine the state at time t
+	the events/commands often take up less space than the state
+	so we often only store 1 copy of the state, and up to N previous events/commands
+	but in order to go arbitrarily back in time, we at least need a initial state
+	and all previous events/commands from that initial state to time t
+	and to optimize, we could make incremental states between t0 and ti
+
+visual for hrmit code execution
+	show a simplified CPU with the ALU and input and output registers and memory on the right and stuff
+
+
 
 
 viewspecs and controlspecs for each window and link
@@ -1647,16 +1870,6 @@ void _start() {
 			DispatchMessageA(&msg);
 		}
 		tick += 1;
-
-		// TODO: pageup pagedown, shift selection, copy paste, undo redo, etc
-		// TODO: audio
-		// TODO: load htmc.dmp from file
-		// parse name comments
-		// show hrmc as either hex or name-aliased code
-		// be able to write in name-aliased view and have it translated to hex
-		// live reload
-		// custom views
-		// view-making toolkit
 
 		u32* pixel = pixel_data;
 		for(int y = 0; y < height; y++) {
