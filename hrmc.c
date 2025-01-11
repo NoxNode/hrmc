@@ -4,7 +4,63 @@
 It's now turned into a reference implementation of the code editor that I plan on eventually having in HRMC
 
 
+simpler single byte hrmit code setup below
+only A-F are tables of opcodes
+0-9 are opcodes with the next hexit as a parameter
 
+still need to flesh out the list stuff
+I want to
+	give an index into a list as the function or string "name"
+	construct global data lists at compile time
+	load from and add to lists at runtime
+can maybe just do the runtime stuff
+	then after compiling a function for the runtime stuff
+	call that function at compile time
+	should try this and see if it can make compiling simpler
+	also try putting forward branch addrs in a list
+	and just looping over those
+	instead of always going back from } to { fixing up branches along the way
+
+0x push 0 extended x
+1x push 1 extended x
+2x append cur addr to global data list x
+3x load element from global data list x
+4x branch back to { local tag
+5x shift ToS left 4 then OR it with x
+6x { local tag
+7x ? branch forward if ToS is 0 to } local tag
+8x pop x abi regs
+9x } local tag
+Ax algebra ops table
+Bx branch ops table?
+Cx comparison table
+Dx data ops table
+Ex extra/conversion ops table
+Fx float algebra ops table
+
+load
+0  1  2   3   4   5   8   6
+u8 s8 u16 s16 u32 s32 u64 f32x4
+store
+C  B   A   9   7
+u8 u16 u32 u64 f32x4
+
+D just takes the ToS and does stuff
+	DEF for data/stack stuff
+E takes 2 off ToS and uses 1st as base and 2nd as index into an array of the corresponding size
+	DEF for GS and maybe compile time global list load/store?
+	ED enscribe data aka compile time label data/function aka add to comp-time global data list
+
+
+2F BD # int strcmp(char* s1, char* s2)
+60 02DEE8 D0 70 03DEE8 D0 70 02DEE8 D0 03DEE8 D0 CE 70
+   02DEE8 01AA 02DEE9 03DEE8 01AA 03DEE9
+   40
+90
+60 02DEE8 D0 03DEE8 D0 CE 70
+   00BE
+90
+02DEE8 D0 03DEE8 D0 AB BE
 
 port to phone and raspberry pi 2
 	maybe just ask if chatgpt can translate hrmc.s into arm32/arm64/riscv64 for raspbian/linux/mac

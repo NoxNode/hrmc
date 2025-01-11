@@ -520,8 +520,8 @@ E601 BE00 # return 1
 5602 59FF # bytes = dest
 7E71 5604 B071 # while(count)
      5603 56FF 9000 # val bytes =u8
-	 5604 AB01 5904 # count--
-	 56FF AA01 59FF # byte++
+	 5604 EB01 5904 # count--
+	 56FF EA01 59FF # byte++
 7F71
 5602 BE00 # return dest
 
