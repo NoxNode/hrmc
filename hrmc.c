@@ -35,7 +35,7 @@ Ax algebra ops table
 Bx branch ops table?
 Cx comparison table
 Dx data ops table
-Ex extra/conversion ops table
+Ex extra/element/conversion ops table
 Fx float algebra ops table
 
 load
