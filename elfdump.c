@@ -1,4 +1,7 @@
 // gcc -o elfdump.exe elfdump.c && ./elfdump.exe elfdump.c
+// readelf -a b.out
+// objdump -x b.out
+// xxd -C b.out
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -594,16 +597,33 @@ long file_read(char* fname, char* buffer, int buffer_size) {
 	fclose(file);
 	return bytes_read;
 }
+u32 file_write(char* fname, u8* buffer, u32 buffer_size) {
+    FILE *file = fopen(fname, "wb");
+    size_t bytes_written = fwrite(buffer, 1, buffer_size, file);
+	fclose(file);
+	return bytes_written;
+}
 
 char* mem_alloc(int size) {
 	return (char*)malloc(size);
 }
 
-typedef struct {
-	Elf64_Ehdr ehdr;
-	Elf64_Phdr phdrs[8];
-	Elf64_Shdr shdrs[6];
-} ELF;
+char* int2str(i64 value, char digits[16]) {
+	int i = 14;
+	do {
+		digits[i--] = (value % 10) + '0';
+		value /= 10;
+	} while(value > 0 && i >= 0);
+	return digits+i+1;
+}
+#pragma function(memcpy)
+void* memcpy(void* dest, void* src, i64 n) {
+	u8* destBytes = (u8*)dest;
+	u8* srcBytes = (u8*)src;
+	while(n--) *destBytes++ = *srcBytes++;
+	return dest;
+}
+#define offsetof(t, f) (&(((t *)0)->f))
 
 // TODO: try re-organizing the stuff from the phdrs and shdrs and see if
 	// 1) we can cut anything out
@@ -615,10 +635,98 @@ typedef struct {
 		// effectively being able to write then execute without a syscall
 		// or we just do the syscall to MPROTECT or whatever it is
 
+typedef struct {
+	Elf64_Ehdr ehdr;
+	Elf64_Phdr phdrs[8]; // phdr, interp, gnu hash, .text, .dynamic, .dynamic, eh_frame, stack
+	u64 unknown[59]; // section content
+	Elf64_Shdr shdrs[6]; // null, .gnu.hash, .dynstr, .text, .dynamic, .shstrstab
+} ELF;
+
 int main(int argc, char *argv[]) {
+	ELF* elf = (ELF*)elfb;
+	printf("%x\n", offsetof(ELF, shdrs));
+	printf("%x\n", elf->ehdr.e_shoff);
+	printf("%x\n", 0x3d0+0x40*3+0x28);
+	printf("%x\n", sizeof(ELF));
+	for(int i = 0; i < 8; i++) {
+		printf("%x, %x, %x, %x\n", elf->phdrs[i].p_type, elf->phdrs[i].p_flags, elf->phdrs[i].p_offset, elf->phdrs[i].p_filesz);
+	}
+	int prev_end = 0;
+	for(int i = 0; i < 6; i++) {
+		printf("%x, %x, %x, %x, %x, %x, %x\n", elf->shdrs[i].sh_type, elf->shdrs[i].sh_flags, prev_end, elf->shdrs[i].sh_offset, elf->shdrs[i].sh_size, elf->shdrs[i].sh_link, elf->shdrs[i].sh_info);
+		prev_end = elf->shdrs[i].sh_offset + elf->shdrs[i].sh_size;
+	}
+	for(int i = 0; i < 8; i++) {
+		printf("%x, %x\n", elf->phdrs[i].p_vaddr, elf->phdrs[i].p_paddr);
+	}
 	int buffer_size = 64*1024;
 	char* buffer = mem_alloc(buffer_size);
-    printf("%s", buffer);
+	int ehdr_size = sizeof(Elf64_Ehdr);
+	int phdr_size = sizeof(Elf64_Phdr);
+	int shdr_size = sizeof(Elf64_Shdr);
+	int shdrs_start = (int)offsetof(ELF, shdrs);
+	int off = 0;
+	memcpy(buffer, elfb, ehdr_size);
+	off += ehdr_size;
+	memcpy(buffer+off, elfb+ehdr_size+phdr_size*3, phdr_size); off += phdr_size; // segment LOAD    RE .dynamic .gnu.hash .text
+	memcpy(buffer+off, elfb+ehdr_size+phdr_size*5, phdr_size); off += phdr_size; // segment DYNAMIC RW .dynamic
+	memcpy(buffer+off, elfb+shdrs_start+shdr_size*3, shdr_size); off += shdr_size; // section .text     PROGBITS AX
+	memcpy(buffer+off, elfb+shdrs_start+shdr_size*1, shdr_size); off += shdr_size; // section .gnu.hash GNU_HASH A
+	memcpy(buffer+off, elfb+shdrs_start+shdr_size*4, shdr_size); off += shdr_size; // section .dynamic  DYNAMIC  WA
+	memcpy(buffer+off, elfb+shdrs_start+shdr_size*5, shdr_size); off += shdr_size; // section .shstrtab STRTAB   
+	//// lay out section data and update offset and size of sections
+	// update offset and size of segments and sections
+	// .dynamic data
+	int osi, isi, dynamic_off, dynamic_size;
+	osi = 2; isi = 4; dynamic_off = off; dynamic_size = elf->shdrs[isi].sh_size;
+	((Elf64_Shdr*)(buffer+ehdr_size+phdr_size*2+shdr_size*osi))->sh_addr = 0x100000+off;
+	((Elf64_Shdr*)(buffer+ehdr_size+phdr_size*2+shdr_size*osi))->sh_offset = off;
+	((Elf64_Shdr*)(buffer+ehdr_size+phdr_size*2+shdr_size*osi))->sh_size = elf->shdrs[isi].sh_size;
+	((Elf64_Shdr*)(buffer+ehdr_size+phdr_size*2+shdr_size*osi))->sh_link = 3; // link .dynamic to .shstrtab
+	u64* dyn_data = (u64*)(buffer+off);
+	memcpy(buffer+off, elfb+elf->shdrs[isi].sh_offset, elf->shdrs[isi].sh_size); off += elf->shdrs[isi].sh_size;
+	// .gnu.hash data
+	osi = 1; isi = 1;
+	((Elf64_Shdr*)(buffer+ehdr_size+phdr_size*2+shdr_size*osi))->sh_addr = 0x1000+off;
+	((Elf64_Shdr*)(buffer+ehdr_size+phdr_size*2+shdr_size*osi))->sh_offset = off;
+	((Elf64_Shdr*)(buffer+ehdr_size+phdr_size*2+shdr_size*osi))->sh_size = elf->shdrs[isi].sh_size;
+	memcpy(buffer+off, elfb+elf->shdrs[isi].sh_offset, elf->shdrs[isi].sh_size); off += elf->shdrs[isi].sh_size;
+	dyn_data[8*2+1] = 0x1000+off;
+	// .shstrtab data
+	osi = 3; isi = 5;
+	((Elf64_Shdr*)(buffer+ehdr_size+phdr_size*2+shdr_size*osi))->sh_addr = 0x1000+off;
+	((Elf64_Shdr*)(buffer+ehdr_size+phdr_size*2+shdr_size*osi))->sh_offset = off;
+	((Elf64_Shdr*)(buffer+ehdr_size+phdr_size*2+shdr_size*osi))->sh_size = elf->shdrs[isi].sh_size;
+	memcpy(buffer+off, elfb+elf->shdrs[isi].sh_offset, elf->shdrs[isi].sh_size); off += elf->shdrs[isi].sh_size;
+	dyn_data[6*2+1] = 0x1000+off;
+	dyn_data[4*2+1] = 0x1000+off;
+	// .text data
+	osi = 0; isi = 3;
+	((Elf64_Shdr*)(buffer+ehdr_size+phdr_size*2+shdr_size*osi))->sh_addr = 0x1000+off;
+	((Elf64_Shdr*)(buffer+ehdr_size+phdr_size*2+shdr_size*osi))->sh_offset = off;
+	((Elf64_Shdr*)(buffer+ehdr_size+phdr_size*2+shdr_size*osi))->sh_size = elf->shdrs[isi].sh_size;
+	memcpy(buffer+off, elfb+elf->shdrs[isi].sh_offset, elf->shdrs[isi].sh_size); off += elf->shdrs[isi].sh_size;
+	//// update offset and size of segments
+	((Elf64_Phdr*)(buffer+ehdr_size+phdr_size*0))->p_offset = 0;
+	((Elf64_Phdr*)(buffer+ehdr_size+phdr_size*0))->p_filesz = buffer_size;
+	((Elf64_Phdr*)(buffer+ehdr_size+phdr_size*0))->p_memsz = buffer_size;
+	((Elf64_Phdr*)(buffer+ehdr_size+phdr_size*0))->p_vaddr = 0x1000;
+	((Elf64_Phdr*)(buffer+ehdr_size+phdr_size*0))->p_paddr = 0x1000;
+	((Elf64_Phdr*)(buffer+ehdr_size+phdr_size*1))->p_offset = dynamic_off;
+	((Elf64_Phdr*)(buffer+ehdr_size+phdr_size*1))->p_filesz = buffer_size-dynamic_off;
+	((Elf64_Phdr*)(buffer+ehdr_size+phdr_size*1))->p_memsz = buffer_size-dynamic_off;
+	((Elf64_Phdr*)(buffer+ehdr_size+phdr_size*1))->p_vaddr = 0x100000;
+	((Elf64_Phdr*)(buffer+ehdr_size+phdr_size*1))->p_paddr = 0x100000;
+	//// elf header
+	((Elf64_Ehdr*)(buffer))->e_entry = 0x1000;
+	((Elf64_Ehdr*)(buffer))->e_shoff = ehdr_size+phdr_size*2;
+	((Elf64_Ehdr*)(buffer))->e_phnum = 2;
+	((Elf64_Ehdr*)(buffer))->e_shnum = 4;
+	((Elf64_Ehdr*)(buffer))->e_shstrndx = 3;
+	// make RE segment and .text section be at the end and have a bunch of 0 padding to just overwrite
+		// if i run out of padding space then I gotta update the segment and section header
+		// but since it's at the end, I dont have to update the other segments or sections
+	file_write("b.out", buffer, buffer_size);
     return 0;
 }
 
