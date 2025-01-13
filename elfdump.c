@@ -690,16 +690,16 @@ int main(int argc, char *argv[]) {
 	((Elf64_Shdr*)(buffer+ehdr_size+phdr_size*2+shdr_size*osi))->sh_addr = 0x1000+off;
 	((Elf64_Shdr*)(buffer+ehdr_size+phdr_size*2+shdr_size*osi))->sh_offset = off;
 	((Elf64_Shdr*)(buffer+ehdr_size+phdr_size*2+shdr_size*osi))->sh_size = elf->shdrs[isi].sh_size;
-	memcpy(buffer+off, elfb+elf->shdrs[isi].sh_offset, elf->shdrs[isi].sh_size); off += elf->shdrs[isi].sh_size;
 	dyn_data[8*2+1] = 0x1000+off;
+	memcpy(buffer+off, elfb+elf->shdrs[isi].sh_offset, elf->shdrs[isi].sh_size); off += elf->shdrs[isi].sh_size;
 	// .shstrtab data
 	osi = 3; isi = 5;
 	((Elf64_Shdr*)(buffer+ehdr_size+phdr_size*2+shdr_size*osi))->sh_addr = 0x1000+off;
 	((Elf64_Shdr*)(buffer+ehdr_size+phdr_size*2+shdr_size*osi))->sh_offset = off;
 	((Elf64_Shdr*)(buffer+ehdr_size+phdr_size*2+shdr_size*osi))->sh_size = elf->shdrs[isi].sh_size;
-	memcpy(buffer+off, elfb+elf->shdrs[isi].sh_offset, elf->shdrs[isi].sh_size); off += elf->shdrs[isi].sh_size;
 	dyn_data[6*2+1] = 0x1000+off;
 	dyn_data[4*2+1] = 0x1000+off;
+	memcpy(buffer+off, elfb+elf->shdrs[isi].sh_offset, elf->shdrs[isi].sh_size); off += elf->shdrs[isi].sh_size;
 	// .text data
 	osi = 0; isi = 3;
 	((Elf64_Shdr*)(buffer+ehdr_size+phdr_size*2+shdr_size*osi))->sh_addr = 0x1000+off;
